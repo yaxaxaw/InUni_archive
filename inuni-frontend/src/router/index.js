@@ -1,29 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import HomePage from '../views/HomePage.vue'
 
-import LoginView from '@/views/LoginView.vue'
-import RegisterView from '@/views/RegisterView.vue'
-import FeedView from '@/views/FeedView.vue'
+const routes = [
+  {
+    path: '/',
+    name: 'home',
+    component: HomePage
+  }
+]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-redirect: '/login'
-},
-{
-  path: '/login',
-  component: LoginView
-},
-{
-  path: '/register',
-  component: RegisterView
-},
-{
-  path: '/feed',
-  component: FeedView
-}
-]
+  history: createWebHistory(),
+  routes
 })
 
 export default router
