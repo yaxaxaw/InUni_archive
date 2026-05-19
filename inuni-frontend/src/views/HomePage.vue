@@ -110,6 +110,95 @@
       </div><!-- hero-inner -->
     </section>
 
+    <!-- ──────────────── FEATURES ──────────────── -->
+    <section id="features" class="features">
+      <div class="container">
+        <div class="section-label">Почему inUni</div>
+        <h2 class="section-title">Не просто сеть —<br>целая жизнь в универе</h2>
+        <div class="features-grid">
+          <div class="feature-card" v-for="f in featuresList" :key="f.icon">
+            <div class="f-icon">{{ f.icon }}</div>
+            <h3>{{ f.title }}</h3>
+            <p>{{ f.desc }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────── UNIVERSITY LIFE ──────────────── -->
+    <section class="unilife">
+      <div class="container">
+        <div class="unilife-inner">
+          <div class="unilife-text">
+            <div class="section-label" style="text-align:left">Студенческая жизнь</div>
+            <h2 class="section-title" style="text-align:left">Универ — это<br>не только пары</h2>
+            <p class="unilife-desc">
+              inUni создан для того, чтобы студенческие годы стали временем настоящих
+              связей. Здесь ты не просто ищешь человека «с нужными скиллами» —
+              ты находишь людей, с которыми тебе по пути.
+            </p>
+            <div class="unilife-points">
+              <div class="ulp" v-for="p in unilifePoints" :key="p.title">
+                <div class="ulp-icon">{{ p.icon }}</div>
+                <div>
+                  <div class="ulp-title">{{ p.title }}</div>
+                  <div class="ulp-desc">{{ p.desc }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="unilife-visual">
+            <div class="chat-preview">
+              <div class="cp-header">
+                <div class="cp-dot red"></div>
+                <div class="cp-dot yellow"></div>
+                <div class="cp-dot green"></div>
+                <span class="cp-title">Общий чат inUni 💬</span>
+              </div>
+              <div class="cp-messages">
+                <div class="cp-msg left">
+                  <div class="cp-msg-avatar" style="background:#1d3a8a">АК</div>
+                  <div class="cp-msg-body">
+                    <span class="cp-msg-name">Сезимай М.</span>
+                    <span class="cp-msg-text">Кто знает, как настроить Windows? 🙏</span>
+                  </div>
+                </div>
+                <div class="cp-msg right">
+                  <div class="cp-msg-body right">
+                    <span class="cp-msg-name" style="text-align:right">Азимбай Ж.</span>
+                    <span class="cp-msg-text">Я помогу! Напиши в личку</span>
+                  </div>
+                  <div class="cp-msg-avatar" style="background:#e63946">ИК</div>
+                </div>
+                <div class="cp-msg left">
+                  <div class="cp-msg-avatar" style="background:#7c3aed">ЭН</div>
+                  <div class="cp-msg-body">
+                    <span class="cp-msg-name">Эмирхан Н.</span>
+                    <span class="cp-msg-text">Собираю команду на футбол в пятницу !</span>
+                  </div>
+                </div>
+                <div class="cp-msg left">
+                  <div class="cp-msg-avatar" style="background:#2d8a4e">АС</div>
+                  <div class="cp-msg-body">
+                    <span class="cp-msg-name">Искендер А.</span>
+                    <span class="cp-msg-text">Я свободен в пятницу! 👋</span>
+                  </div>
+                </div>
+                <div class="cp-typing">
+                  <span></span><span></span><span></span>
+                  <em>Кто-то печатает…</em>
+                </div>
+              </div>
+              <div class="cp-input">
+                <div class="cp-input-field">Написать в чат…</div>
+                <button class="cp-send">→</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
 
   </div>
 </template>
@@ -121,6 +210,19 @@ export default {
     return {
       scrolled: false,
       menuOpen: false,
+      featuresList: [
+        { icon: '🎓', title: 'Только студенты', desc: 'Закрытая сеть внутри университета — здесь только свои. Никаких чужих, только те, кто учится рядом с тобой.' },
+        { icon: '💘', title: 'Знакомства по интересам', desc: 'Находи людей не по факультету, а по тому, что вас объединяет: стек, хобби, проекты, взгляды на жизнь.' },
+        { icon: '🚀', title: 'Команды для проектов', desc: 'Хочешь собрать команду на хакатон или стартап — создай слот и найди людей с нужными навыками внутри универа.' },
+        { icon: '💬', title: 'Живой общий чат', desc: 'Задай вопрос по коду, поделись идеей, запусти обсуждение — комьюнити всегда онлайн и готово ответить.' },
+        { icon: '🤝', title: 'Матчинг без неловкости', desc: 'Свайп вправо — и если симпатия взаимна, открывается чат. Больше не нужно писать вхолодную незнакомым людям.' },
+        { icon: '🏆', title: 'Хакатоны и события', desc: 'Все актуальные соревнования и мероприятия в одном месте — следи за дедлайнами и собирай команду прямо здесь.' },
+      ],
+      unilifePoints: [
+        { icon: '👥', title: 'Знакомься с однокурсниками', desc: 'Не только с теми, кто сидит рядом на паре' },
+        { icon: '🔥', title: 'Находи людей с твоим огнём', desc: 'По интересам, проектам и амбициям' },
+        { icon: '🛠️', title: 'Стройте вместе', desc: 'Стартапы, хакатоны, pet-проекты и open-source' },
+      ],
     };
   },
 };
@@ -498,6 +600,104 @@ export default {
 }
 @keyframes matchPop {
   0%,100%{transform:scale(1)} 50%{transform:scale(1.08)}
+}
+
+
+/* ── FEATURES ── */
+.features { padding: 100px 0; }
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+.feature-card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r);
+  padding: 28px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.feature-card:hover { border-color: rgba(230,57,70,0.4); transform: translateY(-4px); }
+.f-icon { font-size: 32px; margin-bottom: 14px; }
+.feature-card h3 { font-family:'Unbounded',sans-serif; font-size:15px; font-weight:700; color:var(--c-white); margin-bottom:10px; }
+.feature-card p { font-size:14px; line-height:1.6; color:var(--c-muted); }
+
+
+/* ── UNIVERSITY LIFE ── */
+.unilife { padding: 100px 0; background: var(--c-surface); }
+.unilife-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.unilife-desc { font-size: 15px; line-height: 1.7; color: var(--c-muted); margin-bottom: 32px; }
+.unilife-points { display: flex; flex-direction: column; gap: 20px; }
+.ulp { display: flex; gap: 14px; align-items: flex-start; }
+.ulp-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+.ulp-title { font-family:'Unbounded',sans-serif; font-size:13px; font-weight:700; color:var(--c-white); margin-bottom:3px; }
+.ulp-desc { font-size:13px; color:var(--c-muted); }
+
+/* Chat Preview */
+.chat-preview {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+}
+.cp-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--c-border);
+  background: rgba(255,255,255,0.02);
+}
+.cp-dot { width: 10px; height: 10px; border-radius: 50%; }
+.cp-dot.red { background: #e63946; }
+.cp-dot.yellow { background: #f59e0b; }
+.cp-dot.green { background: #34d399; }
+.cp-title { font-size: 13px; font-weight: 600; color: var(--c-muted); margin-left: 8px; }
+.cp-messages { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 220px; }
+.cp-msg { display: flex; align-items: flex-end; gap: 8px; }
+.cp-msg.right { flex-direction: row-reverse; }
+.cp-msg-avatar {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  display: grid; place-items: center;
+  font-family:'Unbounded',sans-serif; font-size:9px; font-weight:700; color:#fff;
+}
+.cp-msg-body { display: flex; flex-direction: column; gap: 3px; max-width: 75%; }
+.cp-msg-body.right { align-items: flex-end; }
+.cp-msg-name { font-size: 10px; color: var(--c-muted); font-weight: 600; }
+.cp-msg-text {
+  font-size: 13px; color: var(--c-text); line-height: 1.45;
+  background: rgba(255,255,255,0.05); padding: 8px 12px;
+  border-radius: 10px; border: 1px solid var(--c-border);
+}
+.cp-msg.right .cp-msg-text {
+  background: rgba(230,57,70,0.12); border-color: rgba(230,57,70,0.2);
+}
+.cp-typing {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--c-muted); padding-left: 40px;
+}
+.cp-typing span {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--c-muted);
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+.cp-typing span:nth-child(2) { animation-delay: 0.2s; }
+.cp-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+.cp-typing em { font-style:normal; margin-left:4px; }
+.cp-input {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--c-border);
+}
+.cp-input-field {
+  flex: 1; font-size: 13px; color: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--c-border);
+  border-radius: 8px; padding: 8px 12px;
+}
+.cp-send {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--c-red); color: #fff; border: none;
+  cursor: pointer; font-size: 15px; font-weight: 700;
 }
 
 </style>
