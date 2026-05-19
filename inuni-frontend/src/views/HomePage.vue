@@ -199,6 +199,76 @@
       </div>
     </section>
 
+    <!-- ──────────────── MODES ──────────────── -->
+    <section id="modes" class="modes">
+      <div class="container">
+        <div class="section-label">Три пространства</div>
+        <h2 class="section-title">Общайся, знакомься<br>и строй вместе</h2>
+        <div class="modes-list">
+          <div
+            class="mode-item"
+            v-for="(m, i) in modesList"
+            :key="i"
+            :class="{ active: activeMode === i }"
+            @click="activeMode = i"
+          >
+            <div class="mode-num">0{{ i + 1 }}</div>
+            <div class="mode-body">
+              <div class="mode-header">
+                <span class="mode-icon">{{ m.icon }}</span>
+                <h3>{{ m.title }}</h3>
+              </div>
+              <p class="mode-desc">{{ m.desc }}</p>
+              <div class="mode-chips">
+                <span v-for="c in m.chips" :key="c">{{ c }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────── AI SECTION ──────────────── -->
+    <section class="ai-section">
+      <div class="container ai-inner">
+        <div class="ai-text">
+          <div class="section-label" style="color:#e63946">AI внутри inUni</div>
+          <h2 class="section-title" style="text-align:left">Умный алгоритм<br>находит своих</h2>
+          <p class="ai-desc">
+            AI в inUni анализирует не просто теги и навыки — он понимает смысл: кто ты,
+            что тебя зажигает, с кем тебе будет комфортно работать и общаться.
+          </p>
+          <ul class="ai-features">
+            <li v-for="af in aiFeatures" :key="af">
+              <span class="ai-check">✦</span>{{ af }}
+            </li>
+          </ul>
+          <a href="#" class="btn-primary">Попробовать AI-подбор</a>
+        </div>
+        <div class="ai-visual">
+          <div class="ai-card">
+            <div class="ai-card-header">
+              <div class="ai-pulse"></div>
+              AI анализирует профиль…
+            </div>
+            <div class="ai-match-row" v-for="m in aiMatches" :key="m.name">
+              <div class="aim-avatar">{{ m.initials }}</div>
+              <div class="aim-info">
+                <span class="aim-name">{{ m.name }}</span>
+                <span class="aim-role">{{ m.role }}</span>
+              </div>
+              <div class="aim-score">
+                <div class="score-bar">
+                  <div class="score-fill" :style="{ width: m.score + '%' }"></div>
+                </div>
+                <span>{{ m.score }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
 
   </div>
 </template>
@@ -222,6 +292,38 @@ export default {
         { icon: '👥', title: 'Знакомься с однокурсниками', desc: 'Не только с теми, кто сидит рядом на паре' },
         { icon: '🔥', title: 'Находи людей с твоим огнём', desc: 'По интересам, проектам и амбициям' },
         { icon: '🛠️', title: 'Стройте вместе', desc: 'Стартапы, хакатоны, pet-проекты и open-source' },
+      ],
+      activeMode: 0,
+      modesList: [
+        {
+          icon: '💘',
+          title: 'Знакомства и нетворкинг',
+          desc: 'Листай карточки студентов с похожими интересами и взглядами. Матч — и вам открывается личный чат. Никакой неловкости первого сообщения.',
+          chips: ['Свайп', 'Матч', 'Личный чат', 'По интересам'],
+        },
+        {
+          icon: '🚀',
+          title: 'Проекты и команды',
+          desc: 'Есть идея стартапа или хакатон на носу? Создай командный слот, опиши задачу и получай заявки от студентов с нужными навыками из твоего универа.',
+          chips: ['Стартап', 'Хакатон', 'Pet-проект', 'Open-source'],
+        },
+        {
+          icon: '💬',
+          title: 'Общий чат универа',
+          desc: 'Единое пространство для всех студентов: задавай вопросы, делись инсайтами, обсуждай идеи и просто общайся с людьми, которые тебя понимают.',
+          chips: ['Вопросы', 'Инсайты', 'Идеи', 'Комьюнити'],
+        },
+      ],
+      aiFeatures: [
+        'Находит студентов с похожим мышлением и интересами',
+        'Рекомендует людей с взаимодополняющими навыками',
+        'AI-ассистент помогает заполнить профиль через диалог',
+        'Предлагает нужные роли при создании командного слота',
+      ],
+      aiMatches: [
+        { initials: 'ИА', name: 'Искендер Абазов', role: 'Frontend Dev', score: 94 },
+        { initials: 'МЭ', name: 'Айжана Тосколбековна', role: 'UX/UI Designer', score: 87 },
+        { initials: 'НД', name: 'Нурдолоот Жоодаров', role: 'ML Engineer', score: 81 },
       ],
     };
   },
@@ -699,5 +801,95 @@ export default {
   background: var(--c-red); color: #fff; border: none;
   cursor: pointer; font-size: 15px; font-weight: 700;
 }
+
+
+/* ── MODES ── */
+.modes { padding: 100px 0; background: var(--c-surface); }
+.modes-list { display: flex; flex-direction: column; gap: 12px; }
+.mode-item {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 24px 28px;
+  border-radius: var(--r);
+  border: 1.5px solid var(--c-border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.mode-item:hover { border-color: rgba(230,57,70,0.3); background: rgba(230,57,70,0.03); }
+.mode-item.active { border-color: var(--c-red); background: rgba(230,57,70,0.06); }
+.mode-num {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--c-border);
+  line-height: 1;
+  flex-shrink: 0;
+  width: 60px;
+  transition: color 0.25s;
+}
+.mode-item.active .mode-num { color: var(--c-red); }
+.mode-body { flex: 1; }
+.mode-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.mode-icon { font-size: 22px; }
+.mode-body h3 { font-family:'Unbounded',sans-serif; font-size:18px; font-weight:700; color:var(--c-white); }
+.mode-desc { font-size:14px; line-height:1.65; color:var(--c-muted); margin-bottom:14px; max-height: 0; overflow:hidden; transition: max-height 0.3s; }
+.mode-item.active .mode-desc { max-height: 100px; }
+.mode-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.mode-chips span {
+  font-size: 11px; padding: 4px 12px; border-radius: 100px;
+  background: rgba(255,255,255,0.06); color: var(--c-muted);
+  border: 1px solid var(--c-border);
+}
+.mode-item.active .mode-chips span { background: rgba(230,57,70,0.1); color: #f87171; border-color: rgba(230,57,70,0.2); }
+
+
+/* ── AI SECTION ── */
+.ai-section { padding: 100px 0; }
+.ai-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.ai-text .section-title { margin-bottom: 20px; }
+.ai-desc { font-size: 15px; line-height: 1.65; color: var(--c-muted); margin-bottom: 24px; }
+.ai-features { list-style: none; margin-bottom: 32px; display: flex; flex-direction: column; gap: 12px; }
+.ai-features li { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; color: var(--c-text); }
+.ai-check { color: var(--c-red); font-size: 12px; margin-top: 2px; flex-shrink: 0; }
+
+.ai-card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r);
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+}
+.ai-card-header {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--c-muted); margin-bottom: 20px;
+  font-weight: 500;
+}
+.ai-pulse {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #34d399;
+  animation: pulse 2s infinite;
+}
+.ai-match-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--c-border);
+}
+.ai-match-row:last-child { border-bottom: none; }
+.aim-avatar {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg, #e63946, #1d4ed8);
+  display: grid; place-items: center;
+  font-family:'Unbounded',sans-serif; font-size:11px; font-weight:700; color:#fff;
+  flex-shrink: 0;
+}
+.aim-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.aim-name { font-size: 13px; font-weight: 600; color: var(--c-white); }
+.aim-role { font-size: 11px; color: var(--c-muted); }
+.aim-score { display: flex; align-items: center; gap: 8px; }
+.score-bar { width: 70px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+.score-fill { height: 100%; background: linear-gradient(90deg, #e63946, #f97316); border-radius: 4px; transition: width 0.6s ease; }
+.aim-score span { font-size: 12px; font-weight: 600; color: var(--c-red); width: 32px; text-align: right; }
 
 </style>
