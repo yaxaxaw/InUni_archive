@@ -1,14 +1,25 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import HomePage from '../views/HomePage.vue'
-import LoginPage from '../views/LoginPage.vue'
-import RegisterPage from '../views/RegisterPage.vue'
+import HomePage from '../pages/HomePage.vue'
+import LoginPage from '../pages/LoginPage.vue'
+import RegisterPage from '../pages/RegisterPage.vue'
+import ProfilePage from '../pages/ProfilePage.vue'
+import TeamsPage from '../pages/TeamsPage.vue'
+import SwipePage from '../pages/SwipePage.vue'
+import ChatPage from '../pages/ChatPage.vue'
 
 const routes = [
   { path: '/', component: HomePage },
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
 
+  { path: '/teams', component: TeamsPage },
+  { path: '/hackathons', redirect: (to) => ({ path: '/teams', query: { ...to.query, tab: 'hackathon' } }) },
+  { path: '/projects', redirect: (to) => ({ path: '/teams', query: { ...to.query, tab: 'all' } }) },
+
+  { path: '/profile', component: ProfilePage },
+  { path: '/swipe', component: SwipePage },
+  { path: '/chat', component: ChatPage },
 ]
 
 const router = createRouter({
