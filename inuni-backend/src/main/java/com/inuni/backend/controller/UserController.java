@@ -1,12 +1,12 @@
 package com.inuni.backend.controller;
 
 import com.inuni.backend.dto.RegisterRequest;
+import com.inuni.backend.dto.UserResponseDto;
 import com.inuni.backend.entity.User;
 import com.inuni.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -15,9 +15,17 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping
-    public List<User> getUsers() {
-        return userService.getAllUsers();
+    @GetMapping("/me")
+    public UserResponseDto getCurrentUser(Authentication authentication) {
+
+        User user = (User) authentication.getPrincipal();
+
+        return new UserResponseDto(
+                user.getId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail()
+        );
     }
 
     @PostMapping
