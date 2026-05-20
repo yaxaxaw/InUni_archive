@@ -853,7 +853,7 @@ CANDIDATES_JSON:[{"name":"...","initials":"...","role":"...","skills":"...","col
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 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',
+            'Authorization': 'Bearer ' + import.meta.env.VITE_GROQ_API_KEY,
           },
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',

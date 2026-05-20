@@ -369,7 +369,7 @@ export default {
       aiGeneratingBio: false,
       aiError: '',
       aiRecommendations: [],
-      ANTHROPIC_KEY: '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',
+      ANTHROPIC_KEY: import.meta.env.VITE_GROQ_API_KEY,
     }
   },
   computed: {
