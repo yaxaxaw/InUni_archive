@@ -7,8 +7,8 @@ services:
 
     environment:
       POSTGRES_DB: inuni
-      POSTGRES_USER: inuni_user
-      POSTGRES_PASSWORD: dreamteam
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 4617
 
     ports:
       - "5433:5432"

@@ -1,29 +1,48 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import LoginView from '@/views/LoginView.vue'
-import RegisterView from '@/views/RegisterView.vue'
-import FeedView from '@/views/FeedView.vue'
+import HomePage from '@/views/HomePage.vue'
+import LoginPage from '@/views/LoginPage.vue'
+import RegisterPage from '@/views/RegisterPage.vue'
+import TeamsPage from '../views/TeamsPage.vue'
+
+const routes = [
+  {
+    path: '/',
+    component: HomePage,
+  },
+  {
+    path: '/login',
+    component: LoginPage,
+  },
+  {
+    path: '/register',
+    component: RegisterPage,
+  },
+  {
+    path: '/teams',
+    name: 'teams',
+    component: TeamsPage
+  },
+]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-redirect: '/login'
-},
-{
-  path: '/login',
-  component: LoginView
-},
-{
-  path: '/register',
-  component: RegisterView
-},
-{
-  path: '/feed',
-  component: FeedView
-}
-]
+  history: createWebHistory(),
+  routes
+})
+
+router.beforeEach((to, from, next) => {
+
+  const token = localStorage.getItem('token')
+
+  const protectedPages = ['/teams']
+
+  const authRequired = protectedPages.includes(to.path)
+
+  if (authRequired && !token) {
+    next('/login')
+  } else {
+    next()
+  }
 })
 
 export default router
