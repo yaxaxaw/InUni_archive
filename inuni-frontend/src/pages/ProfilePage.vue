@@ -225,9 +225,6 @@
           </div>
         </section>
 
-
-
-
         <!-- ── AI ADVISOR ── -->
         <section class="profile-card ai-card">
           <div class="section-header ai-section-header">
@@ -281,7 +278,7 @@
           </div>
         </section>
 
-        <section class="profile-card">
+        <section class="profile-card full-width-card">
           <div class="section-header">
             <div>
               <div class="section-kicker">Активность</div>
@@ -696,7 +693,8 @@ ${profileSummary}`)
   gap: 20px;
 }
 
-.hero-card {
+.hero-card,
+.full-width-card {
   grid-column: 1 / -1;
 }
 
@@ -1253,7 +1251,6 @@ ${profileSummary}`)
 
 /* ── AI ADVISOR STYLES ── */
 .ai-card {
-  grid-column: 1 / -1;
   border-color: rgba(168, 85, 247, 0.25);
   background: linear-gradient(135deg, rgba(168, 85, 247, 0.04) 0%, var(--c-card) 60%);
 }

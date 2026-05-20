@@ -28,7 +28,7 @@
               </div>
               <!-- Подсказка для студентов -->
               <p v-if="!isAdminOrOrg" class="hint-text">
-                💡 Создание хакатонов доступно только для организаций и администраторов
+                💡 Только организации и администраторы могут создавать хакатонные слоты
               </p>
             </div>
             <div class="form-group">
@@ -456,8 +456,8 @@
             <div class="featured-actions">
               <button type="button" class="btn-primary btn-lg" @click="openEventModal(featuredEvent)">Участвовать →</button>
               <button type="button" class="btn-outline" @click="toggleFavorite(featuredEvent.id)">
-                <AppIcon :name="favorites.has(featuredEvent.id) ? 'check' : 'bookmark'" :size="14" />
-                {{ favorites.has(featuredEvent.id) ? 'В избранном' : 'В избранное' }}
+                <AppIcon :name="favoritesArr.includes(featuredEvent.id) ? 'check' : 'bookmark'" :size="14" />
+                {{ favoritesArr.includes(featuredEvent.id) ? 'В избранном' : 'В избранное' }}
               </button>
             </div>
           </div>
@@ -521,10 +521,10 @@
                 <button
                   type="button"
                   class="btn-icon"
-                  :class="{ faved: favorites.has(event.id) }"
+                  :class="{ faved: favoritesArr.includes(event.id) }"
                   @click="toggleFavorite(event.id)"
                 >
-                  <AppIcon :name="favorites.has(event.id) ? 'check' : 'bookmark'" :size="16" />
+                  <AppIcon :name="favoritesArr.includes(event.id) ? 'check' : 'bookmark'" :size="16" />
                 </button>
               </div>
             </article>
@@ -587,17 +587,120 @@
                   <span class="my-slot-badge">✦ Мой слот</span>
                   <button type="button" class="btn-outline btn-delete" @click="deleteSlot(slot)">Удалить</button>
                 </template>
-                <button v-else type="button" class="btn-primary action-main" @click="openSlotApply(slot)">Откликнуться</button>
+                <template v-else>
+                  <button type="button" class="btn-primary action-main" @click="openSlotApply(slot)">Откликнуться</button>
+                  <button
+                    type="button"
+                    class="btn-icon"
+                    :class="{ faved: favoritesArr.includes(slot.id) }"
+                    @click="toggleFavorite(slot.id)"
+                    :title="favoritesArr.includes(slot.id) ? 'В избранном' : 'В избранное'"
+                  >
+                    <AppIcon :name="favoritesArr.includes(slot.id) ? 'check' : 'bookmark'" :size="16" />
+                  </button>
+                </template>
               </div>
             </article>
           </div>
         </section>
 
-        <div v-if="!filteredEvents.length && !filteredSlots.length" class="empty-state">
+        <div v-if="!filteredEvents.length && !filteredSlots.length && activeTab !== 'favorites'" class="empty-state">
           <div class="empty-icon"><AppIcon name="search" :size="26" /></div>
           <div class="empty-title">Ничего не найдено</div>
           <p class="empty-sub">Попробуй другой фильтр или поисковый запрос</p>
         </div>
+
+        <!-- ===== ИЗБРАННОЕ ===== -->
+        <section v-if="activeTab === 'favorites'" class="favorites-section">
+          <div v-if="favoriteItems.events.length === 0 && favoriteItems.slots.length === 0" class="empty-state">
+            <div class="empty-icon"><AppIcon name="bookmark" :size="26" /></div>
+            <div class="empty-title">Избранное пусто</div>
+            <p class="empty-sub">Нажми на закладку на любом событии или слоте — оно появится здесь</p>
+          </div>
+
+          <div v-if="favoriteItems.events.length" class="feed-section">
+            <h2 class="section-heading">
+              <AppIcon name="trophy" :size="18" />
+              Хакатоны
+              <span class="section-count">{{ favoriteItems.events.length }}</span>
+            </h2>
+            <div class="cards-grid">
+              <article
+                v-for="event in favoriteItems.events"
+                :key="event.id"
+                class="event-card"
+                :class="{ 'event-card--hot': event.hot }"
+              >
+                <div class="card-top">
+                  <span class="card-icon">{{ event.icon }}</span>
+                  <div class="card-badges">
+                    <span v-if="event.hot" class="badge-hot">Приоритет</span>
+                    <span class="badge-format" :class="event.format">{{ event.formatLabel }}</span>
+                    <span class="kind-badge event">Событие</span>
+                  </div>
+                </div>
+                <h3 class="card-name">{{ event.name }}</h3>
+                <p class="card-desc">{{ event.desc }}</p>
+                <div class="card-meta">
+                  <span><AppIcon name="calendar" :size="13" />{{ event.date }}</span>
+                  <span><AppIcon name="wallet" :size="13" />{{ event.prize }}</span>
+                  <span><AppIcon name="map-pin" :size="13" />{{ event.location }}</span>
+                </div>
+                <div class="card-actions">
+                  <button type="button" class="btn-primary action-main" @click="openEventModal(event)">Участвовать</button>
+                  <button
+                    type="button"
+                    class="btn-icon faved"
+                    @click="toggleFavorite(event.id)"
+                    title="Убрать из избранного"
+                  >
+                    <AppIcon name="check" :size="16" />
+                  </button>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div v-if="favoriteItems.slots.length" class="feed-section">
+            <h2 class="section-heading">
+              <AppIcon name="users" :size="18" />
+              Слоты
+              <span class="section-count">{{ favoriteItems.slots.length }}</span>
+            </h2>
+            <div class="cards-grid">
+              <article
+                v-for="slot in favoriteItems.slots"
+                :key="slot.id"
+                class="slot-card"
+              >
+                <div class="card-top">
+                  <span class="card-icon">{{ slot.icon }}</span>
+                  <div class="card-badges">
+                    <span class="cat-badge" :class="slot.category">{{ slot.categoryLabel }}</span>
+                    <span class="kind-badge slot">Слот</span>
+                  </div>
+                </div>
+                <h3 class="card-name">{{ slot.name }}</h3>
+                <p class="card-desc">{{ slot.desc }}</p>
+                <p class="roles-label">Ищут в команду:</p>
+                <div class="roles-row">
+                  <span v-for="r in slot.roles" :key="r" class="role-chip">+ {{ r }}</span>
+                </div>
+                <div class="card-actions">
+                  <button type="button" class="btn-primary action-main" @click="openSlotApply(slot)">Откликнуться</button>
+                  <button
+                    type="button"
+                    class="btn-icon faved"
+                    @click="toggleFavorite(slot.id)"
+                    title="Убрать из избранного"
+                  >
+                    <AppIcon name="check" :size="16" />
+                  </button>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
       </template>
     </div>
   </AppShell>
@@ -630,8 +733,10 @@ const emptyEventForm = () => ({
 
 const CATEGORY_LABELS = {
   hackathon: 'Хакатон',
-  startup: 'Стартап',
-  pet: 'Pet',
+  project: 'Проект',
+  startup: 'Проект',
+  pet: 'Проект',
+  project: 'Проект',
 }
 
 // Демо-заявки — показывают как выглядит раздел "Входящие"
@@ -705,7 +810,7 @@ export default {
     return {
       activeTab: 'all',
       searchQuery: '',
-      categoryTabs: CATEGORY_TABS,
+      // tabs built in computedTabs
       themeTags: THEME_TAGS,
       roleOptions: ROLE_OPTIONS,
       officialEvents: OFFICIAL_EVENTS,
@@ -715,7 +820,7 @@ export default {
       applications: state.teamApplications || [],
       incomingApplications,
       profile: state.profile,
-      favorites: new Set(),
+      favoritesArr: state.favoritesArr || [], // ids
       countdown: { days: 12, hours: 7, mins: 43 },
 
       // Фильтр в разделе входящих
@@ -739,7 +844,7 @@ export default {
       selectedEvent: null,
       selectedIncomingApp: null,
       eventForm: emptyEventForm(),
-      newSlot: { name: '', desc: '', tags: [], roles: [], category: 'startup' },
+      newSlot: { name: '', desc: '', tags: [], roles: [], category: 'project' },
       toastMessage: '',
       toastTimer: null,
       countdownTimer: null,
@@ -756,25 +861,39 @@ export default {
     slotCategoryOptions() {
       const all = [
         { key: 'hackathon', label: 'Под хакатон' },
-        { key: 'startup', label: 'Стартап' },
-        { key: 'pet', label: 'Pet-проект' },
+        { key: 'project', label: 'Проект' },
       ]
       return this.isAdminOrOrg ? all : all.filter(o => o.key !== 'hackathon')
     },
 
     // Вкладки
     computedTabs() {
-      const base = [...this.categoryTabs]
+      const base = [
+        { key: 'all', label: 'Все' },
+        { key: 'hackathon', label: 'Хакатоны' },
+        { key: 'project', label: 'Проекты' },
+        { key: 'my', label: 'Мои заявки' },
+      ]
+      // "Избранное" — если есть что-то в избранном
+      if (this.favoritesArr.length > 0) {
+        base.push({ key: 'favorites', label: '⭐ Избранное' })
+      }
       // "Мои слоты" — только если есть созданные слоты
       if (this.createdSlots.length > 0) {
         base.push({ key: 'myslots', label: 'Мои слоты' })
       }
-      // "Входящие" — только если есть входящие заявки или созданные слоты
-      const hasActivity = this.createdSlots.length > 0 || this.incomingApplications.length > 0
-      if (hasActivity) {
+      // "Входящие" — только если есть активные (не удалённые) слоты
+      if (this.createdSlots.length > 0) {
         base.push({ key: 'incoming', label: 'Входящие заявки' })
       }
       return base
+    },
+
+    // Избранные карточки (события + слоты)
+    favoriteItems() {
+      const events = this.officialEvents.filter(e => this.favoritesArr.includes(e.id))
+      const slots = this.allSlots.filter(s => this.favoritesArr.includes(s.id))
+      return { events, slots }
     },
 
     // Количество ожидающих входящих заявок (для бейджа на вкладке)
@@ -795,7 +914,7 @@ export default {
       return this.activeTab === 'all' || this.activeTab === 'hackathon'
     },
     filteredEvents() {
-      if (this.activeTab === 'startup' || this.activeTab === 'pet') return []
+      if (this.activeTab === 'project' || this.activeTab === 'favorites') return []
       const q = this.searchQuery.trim().toLowerCase()
       return this.officialEvents.filter((e) => {
         if (q && !`${e.name} ${e.desc}`.toLowerCase().includes(q)) return false
@@ -805,18 +924,20 @@ export default {
     },
     filteredSlots() {
       const q = this.searchQuery.trim().toLowerCase()
+      if (this.activeTab === 'favorites') return []
       return this.allSlots.filter((s) => {
         if (q && !`${s.name} ${s.desc}`.toLowerCase().includes(q)) return false
         if (this.activeTab === 'all') return true
         if (this.activeTab === 'hackathon') return s.category === 'hackathon'
-        if (this.activeTab === 'startup' || this.activeTab === 'pet') return s.category === this.activeTab
+        if (this.activeTab === 'project') return ['project','startup','pet'].includes(s.category)
         return true
       })
     },
   },
   mounted() {
     const tab = this.$route.query.tab
-    if (tab && [...CATEGORY_TABS, { key: 'incoming' }].some((t) => t.key === tab)) {
+    const validTabs = ['all','hackathon','project','my','favorites','myslots','incoming']
+    if (tab && validTabs.includes(tab)) {
       this.activeTab = tab
     }
     this.countdownTimer = setInterval(() => {
@@ -857,10 +978,13 @@ export default {
     },
 
     toggleFavorite(id) {
-      const next = new Set(this.favorites)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      this.favorites = next
+      const idx = this.favoritesArr.indexOf(id)
+      if (idx >= 0) {
+        this.favoritesArr.splice(idx, 1)
+      } else {
+        this.favoritesArr.push(id)
+      }
+      patchAppState({ favoritesArr: this.favoritesArr })
     },
     toggleNewTag(t) {
       const i = this.newSlot.tags.indexOf(t)
@@ -908,7 +1032,7 @@ export default {
       this.createdSlots.unshift(created)
       patchAppState({ createdSlots: this.createdSlots })
       this.showCreateModal = false
-      this.newSlot = { name: '', desc: '', tags: [], roles: [], category: 'startup' }
+      this.newSlot = { name: '', desc: '', tags: [], roles: [], category: 'project' }
       this.showToast('Слот опубликован')
       this.activeTab = 'myslots'
     },
@@ -1109,8 +1233,10 @@ export default {
 
 .cat-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 100px; border: 1px solid; }
 .cat-badge.hackathon { background: rgba(251,191,36,0.08); color: #fbbf24; border-color: rgba(251,191,36,0.2); }
-.cat-badge.startup { background: rgba(230,57,70,0.1); color: #f87171; border-color: rgba(230,57,70,0.25); }
-.cat-badge.pet { background: rgba(59,130,246,0.1); color: #93c5fd; border-color: rgba(59,130,246,0.2); }
+.cat-badge.project { background: rgba(34,197,94,0.08); color: #4ade80; border-color: rgba(34,197,94,0.2); }
+.cat-badge.startup { background: rgba(34,197,94,0.08); color: #4ade80; border-color: rgba(34,197,94,0.2); }
+.cat-badge.pet { background: rgba(34,197,94,0.08); color: #4ade80; border-color: rgba(34,197,94,0.2); }
+.favorites-section { display: flex; flex-direction: column; gap: 32px; }
 
 .badge-hot { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 100px; background: rgba(230,57,70,0.15); color: var(--c-red); border: 1px solid rgba(230,57,70,0.25); }
 .badge-format { font-size: 11px; padding: 4px 10px; border-radius: 100px; border: 1px solid var(--c-border); color: var(--c-muted); }

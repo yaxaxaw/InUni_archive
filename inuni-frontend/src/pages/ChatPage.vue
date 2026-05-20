@@ -35,6 +35,27 @@
           </div>
 
           <div class="channels-section">
+            <div class="channels-section-label-row">
+              <span class="channels-section-label">Мои группы</span>
+              <button class="create-group-btn" @click="openCreateGroup" title="Создать группу">+</button>
+            </div>
+            <div v-if="groups.length === 0" class="no-groups-hint">
+              Создай группу для своей команды
+            </div>
+            <div
+              v-for="g in groups"
+              :key="g.id"
+              class="channel-item channel-item--group"
+              :class="{ active: activeChannel === g.id }"
+              @click="selectChannel(g.id)"
+            >
+              <span class="ch-icon ch-icon--group">{{ g.name.charAt(0).toUpperCase() }}</span>
+              <span class="ch-name">{{ g.name }}</span>
+              <span class="group-members-count">{{ g.members.length + 1 }}</span>
+            </div>
+          </div>
+
+          <div class="channels-section">
             <div class="channels-section-label">Личные сообщения</div>
             <div
               v-for="dm in dms"
@@ -208,21 +229,44 @@
           <div class="ai-panel-header">
             <div class="ai-panel-title">
               <span class="ai-panel-icon">🤖</span>
-              <span>AI Ассистент</span>
+              <div>
+                <div>AI Ассистент InUni</div>
+                <div class="ai-panel-sub">советник · рекрутер · помощник</div>
+              </div>
             </div>
             <button class="ai-panel-close" @click="showAiPanel = false">✕</button>
           </div>
-          <div class="ai-panel-context" v-if="inputText">
-            <div class="ai-ctx-label">Твой текст:</div>
-            <div class="ai-ctx-text">{{ inputText }}</div>
-          </div>
+
           <div class="ai-chat-feed" ref="aiFeed">
             <div v-if="aiMessages.length === 0" class="ai-empty">
-              <div class="ai-empty-icon">💬</div>
-              <div>Спроси меня что-нибудь или я помогу написать сообщение</div>
+              <div class="ai-empty-icon">🤖</div>
+              <div class="ai-empty-title">Привет! Я твой AI ассистент</div>
+              <div class="ai-empty-desc">Помогу написать сообщение, подберу кандидатов в команду или отвечу на любой вопрос</div>
             </div>
             <div v-for="(m, i) in aiMessages" :key="i" class="ai-msg" :class="{ 'ai-msg-own': m.role === 'user' }">
-              <div class="ai-msg-bubble">{{ m.content }}</div>
+              <div class="ai-msg-bubble">
+                <template v-if="m.candidates">
+                  <div class="ai-msg-text">{{ m.text }}</div>
+                  <div class="candidates-grid">
+                    <div v-for="c in m.candidates" :key="c.name" class="candidate-card">
+                      <div class="cand-header">
+                        <div class="cand-avatar" :style="{ background: c.color }">{{ c.initials }}</div>
+                        <div class="cand-info">
+                          <div class="cand-name">{{ c.name }}</div>
+                          <div class="cand-role">{{ c.role }}</div>
+                        </div>
+                        <div class="cand-match" :class="{ 'match-high': c.match >= 80 }">{{ c.match }}%</div>
+                      </div>
+                      <div class="cand-skills">{{ c.skills }}</div>
+                      <div class="cand-reason">💡 {{ c.reason }}</div>
+                      <button class="cand-dm-btn" @click="startDm({ name: c.name, initials: c.initials, color: c.color, role: c.role }); showAiPanel = false">
+                        Написать →
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                <template v-else>{{ m.content }}</template>
+              </div>
             </div>
             <div v-if="aiLoading" class="ai-msg">
               <div class="ai-msg-bubble ai-msg-loading">
@@ -230,19 +274,22 @@
               </div>
             </div>
           </div>
+
+          <div class="ai-quick-btns">
+            <button class="ai-quick" @click="aiQuick('найди мне frontend разработчика в команду')">🔍 Найти Frontend</button>
+            <button class="ai-quick" @click="aiQuick('найди ML инженера для AI проекта')">🤖 Найти ML</button>
+            <button class="ai-quick" @click="aiQuick('помоги написать сообщение для поиска команды на хакатон')">✍️ Написать пост</button>
+            <button class="ai-quick" @click="aiQuick('улучши моё сообщение: ' + (inputText || 'напиши пример для поиска команды'))">✨ Улучшить текст</button>
+          </div>
+
           <div class="ai-panel-input">
             <textarea
               v-model="aiInput"
-              placeholder="Спроси совета или попроси написать сообщение..."
+              placeholder="Найди дизайнера / напиши пост / помоги с ответом..."
               @keydown.enter.exact.prevent="sendToAi"
               rows="2"
             ></textarea>
             <button class="ai-send-btn" @click="sendToAi" :disabled="!aiInput.trim() || aiLoading">➤</button>
-          </div>
-          <div class="ai-quick-btns">
-            <button class="ai-quick" @click="aiQuick('Помоги написать приветственное сообщение в чат для поиска команды')">👋 Приветствие</button>
-            <button class="ai-quick" @click="aiQuick('Напиши сообщение для поиска Frontend разработчика в команду')">🔍 Поиск в команду</button>
-            <button class="ai-quick" @click="aiQuick('Улучши моё сообщение: ' + (inputText || 'напиши пример'))">✨ Улучшить текст</button>
           </div>
         </div>
 
@@ -281,6 +328,66 @@
       </div>
     </div>
   </AppShell>
+
+  <!-- CREATE GROUP MODAL -->
+  <teleport to="body">
+    <div v-if="showCreateGroup" class="modal-overlay" @click.self="showCreateGroup = false">
+      <div class="modal-box">
+        <div class="modal-header">
+          <div class="modal-title">🚀 Создать группу</div>
+          <button class="modal-close" @click="showCreateGroup = false">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-field">
+            <label class="modal-label">Название группы</label>
+            <input
+              v-model="newGroupName"
+              class="modal-input"
+              placeholder="Например: Team Alpha, HealthTech Squad..."
+              @keydown.enter="createGroup"
+            />
+          </div>
+
+          <div class="modal-field">
+            <label class="modal-label">Добавить участников</label>
+            <div class="members-picker">
+              <div
+                v-for="m in [...onlineMembers, ...offlineMembers]"
+                :key="m.name"
+                class="member-pick-item"
+                :class="{ selected: isMemberSelected(m) }"
+                @click="toggleMember(m)"
+              >
+                <div class="pick-avatar" :style="{ background: m.color }">{{ m.initials }}</div>
+                <div class="pick-info">
+                  <div class="pick-name">{{ m.name }}</div>
+                  <div class="pick-role">{{ m.role }}</div>
+                </div>
+                <div class="pick-check">{{ isMemberSelected(m) ? '✓' : '+' }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="selectedMembers.length > 0" class="selected-summary">
+            <span class="sel-label">Выбрано:</span>
+            <span v-for="m in selectedMembers" :key="m.name" class="sel-chip">{{ m.name.split(' ')[0] }}</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="modal-cancel" @click="showCreateGroup = false">Отмена</button>
+          <button
+            class="modal-create"
+            :disabled="!newGroupName.trim() || selectedMembers.length === 0"
+            @click="createGroup"
+          >
+            Создать группу →
+          </button>
+        </div>
+      </div>
+    </div>
+  </teleport>
 </template>
 
 <script>
@@ -304,11 +411,6 @@ const MESSAGES_GENERAL = [
   { author:'Искендер А.', initials:'ИА', role:'Backend Dev', color:'linear-gradient(135deg,#e63946,#1d4ed8)', time:'10:38', text:'@Айдар отлично! Написал тебе — у нас как раз место фронтендщика открыто 🔥', reactions:[{emoji:'🔥',count:1,mine:true}] },
 ];
 
-const MESSAGES_HACKATHONS = [
-  { author:'Зарина К.', initials:'ЗК', role:'PM', color:'linear-gradient(135deg,#f97316,#e63946)', time:'09:50', text:'Ребята, не забудьте — дедлайн подачи заявок на Digital Almaty Hackathon уже через 2 недели!' },
-  { author:'Данияр С.', initials:'ДС', role:'ML Engineer', color:'linear-gradient(135deg,#1d4ed8,#06b6d4)', time:'09:52', text:'Спасибо за напоминание! Кто уже подал?', reactions:[{emoji:'✅',count:3,mine:false}] },
-  { own:true, initials:'АБ', time:'09:55', text:'Мы с командой подали вчера, удачи всем!' },
-];
 
 export default {
   name: 'ChatPage',
@@ -335,17 +437,14 @@ export default {
       aiMessages: [],
       aiInput: '',
       aiLoading: false,
-      // AI Recruiter channel state
-      recruiterMessages: [
-        { system: true, text: '🤖 AI Рекрутер готов помочь найти участников в твою команду' },
-        { author: '🤖 AI Рекрутер', initials: 'AI', role: 'AI Assistant', color: 'linear-gradient(135deg,#7c3aed,#e63946)', time: '10:00', text: 'Привет! Я помогу найти подходящих участников для твоей команды. Напиши, кого именно ты ищешь — специализацию, опыт, цель проекта — и я предложу лучших кандидатов из InUni.' },
-      ],
+      // Groups
+      showCreateGroup: false,
+      newGroupName: '',
+      selectedMembers: [],
+      groups: [],
       channels: [
-        { id: 'general', icon: 'chat', name: 'общий', desc: 'Главный чат для всех участников InUni', unread: 0 },
-        { id: 'hackathons', icon: 'trophy', name: 'хакатоны', desc: 'Обсуждение хакатонов и команд', unread: 2 },
-        { id: 'projects', icon: 'folder', name: 'проекты', desc: 'Поиск команды и обсуждение идей', unread: 0 },
-        { id: 'random', icon: 'sparkles', name: 'оффтоп', desc: 'Всё остальное', unread: 0 },
-        { id: 'ai-recruiter', icon: 'sparkles', name: '🤖 AI рекрутер', desc: 'AI подберёт кандидатов в вашу команду', unread: 0, isAi: true },
+        { id: 'general', icon: 'chat', name: 'Агора', desc: 'Главная площадь InUni — для всех', unread: 0, locked: false },
+        { id: 'random', icon: 'sparkles', name: 'оффтоп', desc: 'Всё остальное', unread: 0, locked: false },
       ],
       dms: [
         { initials:'ИА', name:'Искендер А.', fullName:'Искендер Абазов', role:'Backend Dev', color:'linear-gradient(135deg,#e63946,#1d4ed8)', preview:'Написал тебе насчёт команды', unread: 1 },
@@ -353,10 +452,7 @@ export default {
       ],
       messagesByChannel: {
         general: [...MESSAGES_GENERAL],
-        hackathons: [...MESSAGES_HACKATHONS],
-        projects: [],
         random: [],
-        'ai-recruiter': [],
       },
       messagesByDm: {
         'Искендер А.': [
@@ -400,9 +496,22 @@ export default {
     },
     currentMessages() {
       if (this.activeDm) return this.messagesByDm[this.activeDm] || [];
-      if (this.activeChannel === 'ai-recruiter') return this.recruiterMessages;
-      if (this.activeChannel) return this.messagesByChannel[this.activeChannel] || [];
+      if (this.activeChannel) {
+        return this.messagesByChannel[this.activeChannel] || [];
+      }
       return [];
+    },
+    allChannels() {
+      const groupChannels = this.groups.map(g => ({
+        id: g.id,
+        icon: 'users',
+        name: g.name,
+        desc: `Команда: ${g.members.map(m => m.name.split(' ')[0]).join(', ')}`,
+        unread: 0,
+        isGroup: true,
+        members: g.members,
+      }));
+      return [...this.channels, ...groupChannels];
     },
     activeDmContact() {
       if (!this.activeDm) return null;
@@ -485,12 +594,6 @@ export default {
     },
     send() {
       if (!this.inputText.trim()) return;
-
-      // Handle AI recruiter channel differently
-      if (this.activeChannel === 'ai-recruiter') {
-        this.sendToRecruiter();
-        return;
-      }
 
       const message = {
         own: true,
@@ -704,7 +807,7 @@ export default {
       ]
     },
     /**
-     * Send message to AI assistant panel (Groq)
+     * Единый AI ассистент — советник + рекрутер
      */
     async sendToAi() {
       if (!this.aiInput.trim() || this.aiLoading) return;
@@ -717,11 +820,34 @@ export default {
       const feed = this.$refs.aiFeed;
       if (feed) feed.scrollTop = feed.scrollHeight;
 
-      try {
-        const systemPrompt = `Ты AI-ассистент для платформы InUni — студенческой сети для поиска команд, хакатонов и проектов.
-Помогай пользователям писать сообщения в чат, советуй как лучше сформулировать предложения, помогай с поиском команды.
-Отвечай кратко, по-русски, дружелюбно. Если пользователь просит написать сообщение — дай готовый текст.
+      const CANDIDATES = [
+        { name: 'Искендер А.', initials: 'ИА', role: 'Backend Dev', skills: 'Python, Node.js, PostgreSQL, Docker', color: 'linear-gradient(135deg,#e63946,#1d4ed8)', about: '3 года опыта, участник 5+ хакатонов' },
+        { name: 'Айгерим М.', initials: 'АМ', role: 'UI/UX Designer', skills: 'Figma, Adobe XD, Framer, Tailwind', color: 'linear-gradient(135deg,#7c3aed,#e63946)', about: 'Дизайнер продуктов, портфолио 12+ проектов' },
+        { name: 'Данияр С.', initials: 'ДС', role: 'ML Engineer', skills: 'Python, TensorFlow, PyTorch, OpenCV', color: 'linear-gradient(135deg,#1d4ed8,#06b6d4)', about: 'ML-инженер, специализация HealthTech и CV' },
+        { name: 'Зарина К.', initials: 'ЗК', role: 'Product Manager', skills: 'Agile, Jira, аналитика, roadmap', color: 'linear-gradient(135deg,#f97316,#e63946)', about: 'PM с опытом в стартапах, 2 успешных запуска' },
+        { name: 'Максат Б.', initials: 'МБ', role: 'Frontend Dev', skills: 'Vue 3, React, TypeScript, Tailwind', color: 'linear-gradient(135deg,#059669,#1d4ed8)', about: 'Frontend разработчик, 2 года опыта' },
+        { name: 'Ренат М.', initials: 'РМ', role: 'DevOps Engineer', skills: 'Kubernetes, Docker, CI/CD, AWS', color: 'linear-gradient(135deg,#059669,#06b6d4)', about: 'DevOps, автоматизация и облачная инфраструктура' },
+        { name: 'Назгуль О.', initials: 'НО', role: 'Mobile Developer', skills: 'Flutter, React Native, iOS, Android', color: 'linear-gradient(135deg,#e63946,#f97316)', about: 'Мобильный разработчик, 3 приложения в Store' },
+      ];
+
+      const systemPrompt = `Ты AI-ассистент платформы InUni — студенческой сети для поиска команд, хакатонов и проектов в Кыргызстане.
+
+У тебя две роли в одном:
+1. РЕКРУТЕР: если пользователь ищет людей в команду — подбери подходящих из базы участников и верни JSON
+2. АССИСТЕНТ: во всех остальных случаях — помоги написать сообщение, дай совет, улучши текст
+
+База участников: ${JSON.stringify(CANDIDATES)}
+
+ВАЖНО: если запрос про поиск людей/кандидатов/участников в команду — верни СТРОГО в таком формате (только JSON, без лишнего текста до/после):
+CANDIDATES_JSON:[{"name":"...","initials":"...","role":"...","skills":"...","color":"...","about":"...","match":95,"reason":"почему подходит"}]
+
+В остальных случаях — отвечай обычным текстом по-русски, кратко и дружелюбно.
 Текущее сообщение пользователя в чате: "${this.inputText || '(пусто)'}"`;
+
+      try {
+        const historyForApi = this.aiMessages
+          .filter(m => !m.candidates)
+          .map(m => ({ role: m.role, content: m.content || m.text || '' }));
 
         const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -733,17 +859,32 @@ export default {
             model: 'llama-3.3-70b-versatile',
             messages: [
               { role: 'system', content: systemPrompt },
-              ...this.aiMessages,
+              ...historyForApi,
             ],
-            max_tokens: 400,
-            temperature: 0.7,
+            max_tokens: 800,
+            temperature: 0.4,
           }),
         });
         const data = await res.json();
-        const reply = data.choices?.[0]?.message?.content || 'Не удалось получить ответ';
-        this.aiMessages.push({ role: 'assistant', content: reply });
+        const reply = data.choices?.[0]?.message?.content || '';
+
+        if (reply.includes('CANDIDATES_JSON:')) {
+          try {
+            const jsonStr = reply.split('CANDIDATES_JSON:')[1].trim();
+            const candidates = JSON.parse(jsonStr);
+            this.aiMessages.push({
+              role: 'assistant',
+              text: `Нашёл ${candidates.length} подходящих кандидата:`,
+              candidates,
+            });
+          } catch {
+            this.aiMessages.push({ role: 'assistant', content: reply.replace('CANDIDATES_JSON:', '') });
+          }
+        } else {
+          this.aiMessages.push({ role: 'assistant', content: reply });
+        }
       } catch (e) {
-        this.aiMessages.push({ role: 'assistant', content: '⚠️ Ошибка соединения с AI. Попробуй снова.' });
+        this.aiMessages.push({ role: 'assistant', content: '⚠️ Ошибка соединения. Попробуй снова.' });
       } finally {
         this.aiLoading = false;
         await this.$nextTick();
@@ -757,92 +898,37 @@ export default {
       this.sendToAi();
     },
 
-    /**
-     * AI Recruiter channel — Groq finds candidates
-     */
-    async sendToRecruiter() {
-      const userText = this.inputText.trim();
-      if (!userText) return;
-
-      this.recruiterMessages.push({
-        own: true,
-        initials: this.ownInitials,
-        time: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
-        text: userText,
-      });
-      this.inputText = '';
-      this.someoneTyping = true;
-
-      await this.$nextTick();
-      const feed = this.$refs.feed;
-      if (feed) feed.scrollTop = feed.scrollHeight;
-
-      const CANDIDATES = [
-        { name: 'Искендер А.', initials: 'ИА', role: 'Backend Dev', skills: 'Python, Node.js, PostgreSQL, Docker', color: 'linear-gradient(135deg,#e63946,#1d4ed8)', about: '3 года опыта, участник 5+ хакатонов' },
-        { name: 'Айгерим М.', initials: 'АМ', role: 'UI/UX Designer', skills: 'Figma, Adobe XD, Framer, Tailwind', color: 'linear-gradient(135deg,#7c3aed,#e63946)', about: 'Дизайнер продуктов, портфолио 12+ проектов' },
-        { name: 'Данияр С.', initials: 'ДС', role: 'ML Engineer', skills: 'Python, TensorFlow, PyTorch, OpenCV', color: 'linear-gradient(135deg,#1d4ed8,#06b6d4)', about: 'ML-инженер, специализация HealthTech и CV' },
-        { name: 'Зарина К.', initials: 'ЗК', role: 'Product Manager', skills: 'Agile, Jira, аналитика, roadmap', color: 'linear-gradient(135deg,#f97316,#e63946)', about: 'PM с опытом в стартапах, 2 успешных запуска' },
-        { name: 'Максат Б.', initials: 'МБ', role: 'Frontend Dev', skills: 'Vue 3, React, TypeScript, Tailwind', color: 'linear-gradient(135deg,#059669,#1d4ed8)', about: 'Frontend разработчик, 2 года опыта' },
-        { name: 'Ренат М.', initials: 'РМ', role: 'DevOps Engineer', skills: 'Kubernetes, Docker, CI/CD, AWS', color: 'linear-gradient(135deg,#059669,#06b6d4)', about: 'DevOps, автоматизация и облачная инфраструктура' },
-        { name: 'Назгуль О.', initials: 'НО', role: 'Mobile Developer', skills: 'Flutter, React Native, iOS, Android', color: 'linear-gradient(135deg,#e63946,#f97316)', about: 'Мобильный разработчик, 3 приложения в Store' },
-      ];
-
-      try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer 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',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              {
-                role: 'system',
-                content: `Ты AI-рекрутер платформы InUni. Твоя задача — по запросу пользователя подобрать подходящих кандидатов из списка участников.
-Список участников (JSON): ${JSON.stringify(CANDIDATES)}
-
-Верни ТОЛЬКО валидный JSON массив (без markdown, без пояснений) такого формата:
-[{"name":"...","initials":"...","role":"...","skills":"...","color":"...","about":"...","match":90,"reason":"почему подходит (1 предложение)"}]
-Выбери 2-4 наиболее подходящих по запросу. Поле match — процент соответствия (50-99).`,
-              },
-              { role: 'user', content: userText },
-            ],
-            max_tokens: 800,
-            temperature: 0.3,
-          }),
-        });
-        const data = await res.json();
-        let raw = data.choices?.[0]?.message?.content || '[]';
-        raw = raw.replace(/```json|```/g, '').trim();
-        const candidates = JSON.parse(raw);
-
-        this.someoneTyping = false;
-        const intro = `Нашёл ${candidates.length} подходящих кандидата по твоему запросу:`;
-        this.recruiterMessages.push({
-          author: '🤖 AI Рекрутер',
-          initials: 'AI',
-          role: 'AI Assistant',
-          color: 'linear-gradient(135deg,#7c3aed,#e63946)',
-          time: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
-          text: intro,
-          candidates,
-          isRecruiterResult: true,
-        });
-      } catch (e) {
-        this.someoneTyping = false;
-        this.recruiterMessages.push({
-          author: '🤖 AI Рекрутер',
-          initials: 'AI',
-          role: 'AI Assistant',
-          color: 'linear-gradient(135deg,#7c3aed,#e63946)',
-          time: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
-          text: '⚠️ Не удалось получить ответ от AI. Попробуй снова.',
-        });
+    // ==================== GROUP METHODS ====================
+    openCreateGroup() {
+      this.showCreateGroup = true;
+      this.newGroupName = '';
+      this.selectedMembers = [];
+    },
+    toggleMember(member) {
+      const idx = this.selectedMembers.findIndex(m => m.name === member.name);
+      if (idx >= 0) {
+        this.selectedMembers.splice(idx, 1);
+      } else {
+        this.selectedMembers.push(member);
       }
-
-      await this.$nextTick();
-      if (feed) feed.scrollTop = feed.scrollHeight;
+    },
+    isMemberSelected(member) {
+      return this.selectedMembers.some(m => m.name === member.name);
+    },
+    createGroup() {
+      if (!this.newGroupName.trim() || this.selectedMembers.length === 0) return;
+      const id = 'group-' + Date.now();
+      const group = {
+        id,
+        name: this.newGroupName.trim(),
+        members: [...this.selectedMembers],
+      };
+      this.groups.push(group);
+      this.messagesByChannel[id] = [
+        { system: true, text: `Группа "${group.name}" создана. Участники: ${group.members.map(m => m.name).join(', ')}` },
+      ];
+      this.showCreateGroup = false;
+      this.selectChannel(id);
     },
   },
   mounted() {
@@ -878,6 +964,13 @@ export default {
 }
 
 .chat-page {
+  --c-text: #dde3f0;
+  --c-white: #f0f4ff;
+  --c-muted: #7a8aaa;
+  --c-bg: #0c1220;
+  --c-bg2: #111827;
+  --c-border: rgba(255,255,255,0.1);
+  --c-red: #e63946;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -909,14 +1002,14 @@ export default {
 
 /* CHANNELS PANEL */
 .channels-panel {
-  width: 264px;
+  width: 290px;
   flex-shrink: 0;
   background: rgba(12, 18, 36, 0.96);
   border-right: 1px solid var(--c-border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  padding: 18px 0 16px;
+  padding: 18px 0 16px 16px;
   min-width: 0;
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.02);
 }
@@ -925,7 +1018,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 14px 14px;
+  padding: 0 14px 14px 20px;
   border-bottom: 1px solid var(--c-border);
   margin-bottom: 10px;
   min-width: 0;
@@ -958,8 +1051,8 @@ export default {
 .online-dot { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-.channels-section { padding: 0 8px 16px; }
-.channels-section-label { font-size: 10px; font-weight: 700; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.12em; padding: 0 8px 8px; }
+.channels-section { padding: 0 8px 16px 14px; }
+.channels-section-label { font-size: 10px; font-weight: 700; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.12em; padding: 0 8px 8px 6px; }
 
 .channel-item {
   display: flex;
@@ -1449,12 +1542,20 @@ export default {
 .ai-panel-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-family: 'Unbounded', sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: #c4b5fd;
   letter-spacing: 0.02em;
+}
+.ai-panel-sub {
+  font-size: 10px;
+  font-weight: 400;
+  color: #7c5fc4;
+  font-family: 'Onest', sans-serif;
+  letter-spacing: 0.01em;
+  margin-top: 1px;
 }
 .ai-panel-icon { font-size: 18px; }
 .ai-panel-close {
@@ -1489,10 +1590,12 @@ export default {
 
 .ai-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; flex: 1; text-align: center;
-  font-size: 12px; color: var(--c-muted); padding: 20px;
+  gap: 8px; flex: 1; text-align: center;
+  font-size: 12px; color: var(--c-muted); padding: 24px 16px;
 }
-.ai-empty-icon { font-size: 32px; }
+.ai-empty-icon { font-size: 36px; margin-bottom: 4px; }
+.ai-empty-title { font-size: 13px; font-weight: 700; color: #c4b5fd; font-family: 'Unbounded', sans-serif; }
+.ai-empty-desc { font-size: 12px; color: var(--c-muted); line-height: 1.5; }
 
 .ai-msg { display: flex; }
 .ai-msg-own { justify-content: flex-end; }
@@ -1513,6 +1616,9 @@ export default {
   border-radius: 12px 12px 4px 12px;
   color: #ddd6fe;
 }
+.ai-msg-text { margin-bottom: 10px; font-size: 13px; line-height: 1.5; }
+.ai-msg-bubble .candidates-grid { margin-top: 0; }
+.ai-msg-bubble .candidate-card { background: rgba(10,14,30,0.8); }
 .ai-msg-loading {
   display: flex; gap: 4px; align-items: center; padding: 12px 16px;
 }
@@ -1639,4 +1745,209 @@ export default {
   border-color: rgba(124,58,237,0.4);
   color: #ddd6fe;
 }
+
+/* ===== GROUPS ===== */
+.channels-section-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 8px;
+}
+.channels-section-label-row .channels-section-label {
+  padding: 0;
+}
+.create-group-btn {
+  width: 20px; height: 20px; border-radius: 6px;
+  background: rgba(230,57,70,0.15);
+  border: 1px solid rgba(230,57,70,0.3);
+  color: #f87171; font-size: 16px; line-height: 1;
+  display: grid; place-items: center;
+  cursor: pointer; transition: all 0.2s;
+  flex-shrink: 0;
+}
+.create-group-btn:hover {
+  background: rgba(230,57,70,0.25);
+  border-color: rgba(230,57,70,0.5);
+  transform: scale(1.1);
+}
+.no-groups-hint {
+  font-size: 11px; color: var(--c-muted);
+  padding: 6px 14px 10px;
+  font-style: italic;
+}
+.channel-item--group .ch-icon--group {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: linear-gradient(135deg, rgba(230,57,70,0.3), rgba(29,78,216,0.3));
+  border: 1px solid rgba(230,57,70,0.2);
+  display: grid; place-items: center;
+  font-size: 10px; font-weight: 800;
+  color: #f4a3a9;
+  font-family: 'Unbounded', sans-serif;
+}
+.group-members-count {
+  font-size: 10px; color: var(--c-muted);
+  background: rgba(255,255,255,0.06);
+  border-radius: 100px; padding: 1px 6px;
+  border: 1px solid var(--c-border);
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(5,10,24,0.55);
+  backdrop-filter: blur(14px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-box {
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(32px);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 24px;
+  width: 100%; max-width: 480px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
+  display: flex; flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+}
+.modal-title {
+  font-family: 'Unbounded', sans-serif;
+  font-size: 15px; font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.3);
+}
+.modal-close {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.6); cursor: pointer; font-size: 12px;
+  display: grid; place-items: center; transition: all 0.2s;
+}
+.modal-close:hover { background: rgba(230,57,70,0.25); color: #fff; border-color: rgba(230,57,70,0.4); }
+
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px;
+  flex: 1;
+}
+.modal-field { display: flex; flex-direction: column; gap: 8px; }
+.modal-label {
+  font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.5);
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+.modal-input {
+  background: rgba(255,255,255,0.08);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 11px 14px;
+  color: #fff;
+  font-family: 'Onest', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.modal-input:focus {
+  border-color: rgba(230,57,70,0.55);
+  background: rgba(255,255,255,0.11);
+}
+.modal-input::placeholder { color: rgba(255,255,255,0.3); }
+
+.members-picker {
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 260px; overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 6px;
+  background: rgba(255,255,255,0.03);
+}
+.members-picker::-webkit-scrollbar { width: 3px; }
+.members-picker::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+.member-pick-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 11px; border-radius: 10px;
+  cursor: pointer; transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.member-pick-item:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.08);
+}
+.member-pick-item.selected {
+  background: rgba(230,57,70,0.14);
+  border-color: rgba(230,57,70,0.3);
+}
+.pick-avatar {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: grid; place-items: center;
+  font-family: 'Unbounded', sans-serif; font-size: 10px; font-weight: 700; color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.pick-info { flex: 1; }
+.pick-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.92); }
+.pick-role { font-size: 11px; color: rgba(255,255,255,0.42); margin-top: 1px; }
+.pick-check {
+  width: 22px; height: 22px; border-radius: 6px;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  display: grid; place-items: center;
+  font-size: 12px; color: rgba(255,255,255,0.35);
+  transition: all 0.15s; flex-shrink: 0;
+  background: rgba(255,255,255,0.04);
+}
+.member-pick-item.selected .pick-check {
+  background: #e63946;
+  border-color: #e63946;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(230,57,70,0.4);
+}
+
+.selected-summary {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+}
+.sel-label { font-size: 11px; color: rgba(255,255,255,0.4); }
+.sel-chip {
+  font-size: 11px; padding: 3px 10px; border-radius: 100px;
+  background: rgba(230,57,70,0.18);
+  border: 1px solid rgba(230,57,70,0.32);
+  color: #fca5a5; font-weight: 600;
+}
+
+.modal-footer {
+  display: flex; gap: 10px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.modal-cancel {
+  flex: 1; padding: 11px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 12px;
+  color: rgba(255,255,255,0.55); font-size: 13px;
+  cursor: pointer; transition: all 0.2s;
+  font-family: 'Onest', sans-serif;
+}
+.modal-cancel:hover { background: rgba(255,255,255,0.11); color: rgba(255,255,255,0.8); }
+.modal-create {
+  flex: 2; padding: 11px;
+  background: linear-gradient(135deg, #e63946 0%, #c62d39 100%);
+  border: none; border-radius: 12px;
+  color: #fff; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  font-family: 'Onest', sans-serif;
+  box-shadow: 0 4px 20px rgba(230,57,70,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
+  letter-spacing: 0.01em;
+}
+.modal-create:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f04452 0%, #d63040 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(230,57,70,0.55);
+}
+.modal-create:disabled { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.25); cursor: not-allowed; box-shadow: none; transform: none; }
 </style>
