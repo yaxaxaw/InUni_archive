@@ -1,8 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/inuni
-    username: postgres
-    password: change_me
+    url: jdbc:postgresql://localhost:5433/inuni
 
   jpa:
     hibernate:
@@ -16,3 +14,4 @@ spring:
 
 server:
   port: 8080
+
