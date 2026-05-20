@@ -228,6 +228,59 @@
 
 
 
+        <!-- ── AI ADVISOR ── -->
+        <section class="profile-card ai-card">
+          <div class="section-header ai-section-header">
+            <div>
+              <div class="section-kicker ai-kicker">✨ AI-советник</div>
+              <h3>Рекомендации по профилю</h3>
+            </div>
+            <button
+              class="btn-ai"
+              :class="{ loading: aiLoading }"
+              :disabled="aiLoading"
+              @click="analyzeProfile"
+            >
+              <span v-if="aiLoading" class="ai-spinner"></span>
+              <span v-else>🤖</span>
+              {{ aiLoading ? 'Анализирую...' : 'Проанализировать' }}
+            </button>
+          </div>
+
+          <div v-if="aiError" class="ai-error">{{ aiError }}</div>
+
+          <div v-if="!aiRecommendations.length && !aiLoading && !aiError" class="ai-empty">
+            <p>AI проанализирует твой профиль и даст конкретные советы — как улучшить «О себе», какие навыки добавить, как лучше описать роль для хакатонов.</p>
+          </div>
+
+          <div v-if="aiRecommendations.length" class="ai-recs">
+            <div
+              v-for="(rec, i) in aiRecommendations"
+              :key="i"
+              class="ai-rec-item"
+              :class="`ai-rec--${rec.type}`"
+            >
+              <span class="ai-rec-icon">{{ rec.icon }}</span>
+              <div class="ai-rec-body">
+                <strong>{{ rec.title }}</strong>
+                <p>{{ rec.text }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="isEditing" class="ai-generate-bio">
+            <button
+              class="btn-ai-ghost"
+              :disabled="aiGeneratingBio"
+              @click="generateBio"
+            >
+              <span v-if="aiGeneratingBio" class="ai-spinner ai-spinner--dark"></span>
+              {{ aiGeneratingBio ? 'Генерирую...' : '✨ Написать «О себе» с помощью AI' }}
+            </button>
+            <p class="ai-bio-hint">AI напишет текст на основе твоей роли, навыков и направления</p>
+          </div>
+        </section>
+
         <section class="profile-card">
           <div class="section-header">
             <div>
@@ -314,6 +367,12 @@ export default {
       photoInputKey: 0,
       toastMessage: '',
       toastTimer: null,
+      // AI advisor
+      aiLoading: false,
+      aiGeneratingBio: false,
+      aiError: '',
+      aiRecommendations: [],
+      ANTHROPIC_KEY: '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',
     }
   },
   computed: {
@@ -449,6 +508,93 @@ export default {
       this.toastTimer = setTimeout(() => {
         this.toastMessage = ''
       }, 2400)
+    },
+
+    // ── AI METHODS ──
+    async callAI(systemPrompt, userMessage) {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + this.ANTHROPIC_KEY,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          max_tokens: 1000,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+          ],
+        }),
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        throw new Error(e.error?.message || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      return data.choices?.[0]?.message?.content || ''
+    },
+
+    async analyzeProfile() {
+      this.aiLoading = true
+      this.aiError = ''
+      this.aiRecommendations = []
+      const p = this.profile
+      try {
+        const profileSummary = `
+Имя: ${p.firstName} ${p.lastName}
+Роль: ${p.role || 'не указана'}
+Направление: ${p.direction || 'не указано'}
+Курс: ${p.course || 'не указан'}
+О себе: ${p.about || 'не заполнено'}
+Навыки: ${(p.interests || []).join(', ') || 'не выбраны'}
+GitHub: ${p.github || 'не указан'}
+LinkedIn: ${p.linkedin || 'не указан'}
+Заполненность профиля: ${this.completion}%
+        `.trim()
+
+        const systemPrompt = `Ты — AI-советник платформы InUni для студентов IT-специальностей.
+Анализируй профиль студента и давай конкретные, практичные рекомендации на русском языке.
+Отвечай ТОЛЬКО валидным JSON-массивом без markdown, без пояснений вне JSON.
+Формат каждого элемента: {"type": "tip|warning|success", "icon": "emoji", "title": "короткий заголовок", "text": "конкретный совет 1-2 предложения"}
+Типы: "success" — что уже хорошо, "warning" — что срочно надо заполнить, "tip" — как улучшить.
+Давай 4-5 рекомендаций. Будь конкретным, не общим.`
+
+        const raw = await this.callAI(systemPrompt, `Проанализируй профиль студента:
+${profileSummary}`)
+        const cleaned = raw.replace(/```json|```/g, '').trim()
+        this.aiRecommendations = JSON.parse(cleaned)
+      } catch (e) {
+        this.aiError = 'Ошибка AI: ' + e.message
+      } finally {
+        this.aiLoading = false
+      }
+    },
+
+    async generateBio() {
+      this.aiGeneratingBio = true
+      const p = this.draftProfile
+      try {
+        const systemPrompt = `Ты — помощник для студентов IT. Пиши «О себе» для профиля на платформе студенческого нетворкинга.
+Стиль: живой, профессиональный, не шаблонный. 3-4 предложения на русском языке.
+Не начинай с "Я студент". Упомяни роль, навыки и чем интересен человек для команды.
+Отвечай ТОЛЬКО текстом без кавычек, пояснений и markdown.`
+
+        const userMsg = `Напиши «О себе» для:
+Имя: ${p.firstName} ${p.lastName}
+Роль: ${p.role || 'разработчик'}
+Направление: ${p.direction || 'IT'}
+Курс: ${p.course || ''}
+Навыки: ${this.draftSkills.join(', ') || 'не указаны'}`
+
+        const bio = await this.callAI(systemPrompt, userMsg)
+        this.draftProfile.about = bio.trim()
+        this.showToast('✨ «О себе» сгенерировано')
+      } catch (e) {
+        this.showToast('Ошибка генерации: ' + e.message)
+      } finally {
+        this.aiGeneratingBio = false
+      }
     },
   },
   beforeUnmount() {
@@ -1103,6 +1249,179 @@ export default {
 
 .profile-header {
   align-items: flex-start;
+}
+
+/* ── AI ADVISOR STYLES ── */
+.ai-card {
+  grid-column: 1 / -1;
+  border-color: rgba(168, 85, 247, 0.25);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.04) 0%, var(--c-card) 60%);
+}
+
+.ai-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ai-kicker {
+  color: #a855f7 !important;
+}
+
+.btn-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  background: rgba(168, 85, 247, 0.12);
+  color: #c084fc;
+  font-family: 'Onest', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-ai:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: rgba(168, 85, 247, 0.6);
+}
+
+.btn-ai:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-ai-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px dashed rgba(168, 85, 247, 0.35);
+  background: transparent;
+  color: #a78bfa;
+  font-family: 'Onest', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-ai-ghost:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.08);
+}
+
+.btn-ai-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(168, 85, 247, 0.3);
+  border-top-color: #a855f7;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-empty p {
+  font-size: 13px;
+  color: var(--c-muted);
+  margin: 0;
+  line-height: 1.7;
+}
+
+.ai-error {
+  font-size: 13px;
+  color: #f87171;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.ai-recs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-rec-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--c-border);
+  background: rgba(255,255,255,0.02);
+  transition: background 0.15s;
+}
+
+.ai-rec--success {
+  border-color: rgba(74, 222, 128, 0.2);
+  background: rgba(74, 222, 128, 0.04);
+}
+
+.ai-rec--warning {
+  border-color: rgba(251, 191, 36, 0.2);
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.ai-rec--tip {
+  border-color: rgba(168, 85, 247, 0.2);
+  background: rgba(168, 85, 247, 0.04);
+}
+
+.ai-rec-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ai-rec-body {
+  flex: 1;
+}
+
+.ai-rec-body strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-white);
+  margin-bottom: 4px;
+}
+
+.ai-rec-body p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--c-text);
+  line-height: 1.6;
+}
+
+.ai-generate-bio {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--c-border);
+}
+
+.ai-bio-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--c-muted);
+  text-align: center;
 }
 
 </style>

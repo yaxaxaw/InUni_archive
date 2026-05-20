@@ -106,14 +106,47 @@
                     <template v-else>{{ msg.text }}</template>
                     <span v-if="msg.own" class="msg-time-own">{{ msg.time }}</span>
                   </div>
+                  <!-- Candidate cards for AI Recruiter -->
+                  <div v-if="msg.isRecruiterResult && msg.candidates" class="candidates-grid">
+                    <div v-for="c in msg.candidates" :key="c.name" class="candidate-card">
+                      <div class="cand-header">
+                        <div class="cand-avatar" :style="{ background: c.color }">{{ c.initials }}</div>
+                        <div class="cand-info">
+                          <div class="cand-name">{{ c.name }}</div>
+                          <div class="cand-role">{{ c.role }}</div>
+                        </div>
+                        <div class="cand-match" :class="{ 'match-high': c.match >= 80 }">{{ c.match }}%</div>
+                      </div>
+                      <div class="cand-about">{{ c.about }}</div>
+                      <div class="cand-skills">{{ c.skills }}</div>
+                      <div class="cand-reason">💡 {{ c.reason }}</div>
+                      <button class="cand-dm-btn" @click="startDm({ name: c.name, initials: c.initials, color: c.color, role: c.role })">
+                        Написать →
+                      </button>
+                    </div>
+                  </div>
                   <div class="msg-reactions" v-if="msg.reactions && msg.reactions.length">
-                    <span
-                      v-for="r in msg.reactions"
-                      :key="r.emoji"
-                      class="reaction"
-                      :class="{ reacted: r.mine }"
-                      @click="toggleReaction(msg, r)"
-                    >{{ r.emoji }} {{ r.count }}</span>
+                     <span
+                       v-for="r in msg.reactions"
+                       :key="r.emoji"
+                       class="reaction"
+                       :class="{ reacted: r.mine }"
+                       @click="toggleReaction(msg, r)"
+                     >{{ r.emoji }} {{ r.count }}</span>
+                  </div>
+                  <!-- AI Suggestions for incoming messages -->
+                  <div v-if="!msg.own && !msg.system && msg.showAiSuggestions" class="ai-suggestions-box">
+                    <div class="ai-label">💡 Как ответить?</div>
+                    <div class="ai-suggestions-list">
+                      <button
+                        v-for="(suggestion, idx) in msg.aiSuggestions"
+                        :key="idx"
+                        class="ai-suggestion-btn"
+                        @click="insertAiSuggestion(suggestion)"
+                      >
+                        {{ suggestion }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </template>
@@ -135,21 +168,89 @@
               <button class="toolbar-btn" title="Файл"><AppIcon name="paperclip" :size="15" /></button>
               <button class="toolbar-btn" title="Код" @click="codeMode = !codeMode" :class="{ active: codeMode }"><AppIcon name="code" :size="15" /></button>
             </div>
+
+            <!-- Intent indicator -->
+            <div v-if="currentIntent && currentIntent !== 'general'" class="intent-indicator">
+              <span class="intent-emoji">{{ getIntentEmoji(currentIntent) }}</span>
+              <span class="intent-label">{{ getIntentLabel(currentIntent) }}</span>
+            </div>
+
+            <!-- Auto-complete menu -->
+            <div v-if="showAutoComplete && autocompleteSuggestions.length > 0" class="autocomplete-menu">
+              <button
+                v-for="(suggestion, idx) in autocompleteSuggestions"
+                :key="idx"
+                class="autocomplete-item"
+                @click="inputText = suggestion; showAutoComplete = false; $refs.input?.focus()"
+              >
+                {{ suggestion }}
+              </button>
+            </div>
+
             <div class="input-wrapper" :class="{ 'input-code': codeMode }">
-              <textarea
-                ref="input"
-                v-model="inputText"
-                :placeholder="codeMode ? 'Вставь код...' : 'Напиши что-нибудь…'"
-                @keydown.enter.exact.prevent="send"
-                @keydown.shift.enter="() => {}"
-                @input="onType"
-                rows="1"
-              ></textarea>
+               <textarea
+                 ref="input"
+                 v-model="inputText"
+                 :placeholder="codeMode ? 'Вставь код...' : 'Напиши что-нибудь…'"
+                 @keydown.enter.exact.prevent="send"
+                 @keydown.shift.enter="() => {}"
+                 @input="onType"
+                 rows="1"
+               ></textarea>
               <button class="send-btn" :disabled="!inputText.trim()" @click="send"><AppIcon name="send" :size="16" /></button>
             </div>
             <div class="input-hint">Enter — отправить · Shift+Enter — перенос строки</div>
           </div>
         </div>
+
+        <!-- AI ASSISTANT PANEL -->
+        <div class="ai-assistant-panel" :class="{ 'ai-panel-open': showAiPanel }">
+          <div class="ai-panel-header">
+            <div class="ai-panel-title">
+              <span class="ai-panel-icon">🤖</span>
+              <span>AI Ассистент</span>
+            </div>
+            <button class="ai-panel-close" @click="showAiPanel = false">✕</button>
+          </div>
+          <div class="ai-panel-context" v-if="inputText">
+            <div class="ai-ctx-label">Твой текст:</div>
+            <div class="ai-ctx-text">{{ inputText }}</div>
+          </div>
+          <div class="ai-chat-feed" ref="aiFeed">
+            <div v-if="aiMessages.length === 0" class="ai-empty">
+              <div class="ai-empty-icon">💬</div>
+              <div>Спроси меня что-нибудь или я помогу написать сообщение</div>
+            </div>
+            <div v-for="(m, i) in aiMessages" :key="i" class="ai-msg" :class="{ 'ai-msg-own': m.role === 'user' }">
+              <div class="ai-msg-bubble">{{ m.content }}</div>
+            </div>
+            <div v-if="aiLoading" class="ai-msg">
+              <div class="ai-msg-bubble ai-msg-loading">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          </div>
+          <div class="ai-panel-input">
+            <textarea
+              v-model="aiInput"
+              placeholder="Спроси совета или попроси написать сообщение..."
+              @keydown.enter.exact.prevent="sendToAi"
+              rows="2"
+            ></textarea>
+            <button class="ai-send-btn" @click="sendToAi" :disabled="!aiInput.trim() || aiLoading">➤</button>
+          </div>
+          <div class="ai-quick-btns">
+            <button class="ai-quick" @click="aiQuick('Помоги написать приветственное сообщение в чат для поиска команды')">👋 Приветствие</button>
+            <button class="ai-quick" @click="aiQuick('Напиши сообщение для поиска Frontend разработчика в команду')">🔍 Поиск в команду</button>
+            <button class="ai-quick" @click="aiQuick('Улучши моё сообщение: ' + (inputText || 'напиши пример'))">✨ Улучшить текст</button>
+          </div>
+        </div>
+
+        <!-- AI ASSISTANT TOGGLE BUTTON -->
+        <button class="ai-toggle-btn" @click="showAiPanel = !showAiPanel" :class="{ active: showAiPanel }">
+          🤖
+          <span class="ai-toggle-label">AI</span>
+        </button>
 
         <!-- RIGHT: active members -->
         <div class="members-panel" v-if="!activeDm">
@@ -226,11 +327,25 @@ export default {
       someoneTyping: false,
       typingUser: 'Искендер А.',
       typingTimer: null,
+      currentIntent: null,
+      showAutoComplete: false,
+      autocompleteSuggestions: [],
+      // AI Assistant panel
+      showAiPanel: false,
+      aiMessages: [],
+      aiInput: '',
+      aiLoading: false,
+      // AI Recruiter channel state
+      recruiterMessages: [
+        { system: true, text: '🤖 AI Рекрутер готов помочь найти участников в твою команду' },
+        { author: '🤖 AI Рекрутер', initials: 'AI', role: 'AI Assistant', color: 'linear-gradient(135deg,#7c3aed,#e63946)', time: '10:00', text: 'Привет! Я помогу найти подходящих участников для твоей команды. Напиши, кого именно ты ищешь — специализацию, опыт, цель проекта — и я предложу лучших кандидатов из InUni.' },
+      ],
       channels: [
         { id: 'general', icon: 'chat', name: 'общий', desc: 'Главный чат для всех участников InUni', unread: 0 },
         { id: 'hackathons', icon: 'trophy', name: 'хакатоны', desc: 'Обсуждение хакатонов и команд', unread: 2 },
         { id: 'projects', icon: 'folder', name: 'проекты', desc: 'Поиск команды и обсуждение идей', unread: 0 },
         { id: 'random', icon: 'sparkles', name: 'оффтоп', desc: 'Всё остальное', unread: 0 },
+        { id: 'ai-recruiter', icon: 'sparkles', name: '🤖 AI рекрутер', desc: 'AI подберёт кандидатов в вашу команду', unread: 0, isAi: true },
       ],
       dms: [
         { initials:'ИА', name:'Искендер А.', fullName:'Искендер Абазов', role:'Backend Dev', color:'linear-gradient(135deg,#e63946,#1d4ed8)', preview:'Написал тебе насчёт команды', unread: 1 },
@@ -241,6 +356,7 @@ export default {
         hackathons: [...MESSAGES_HACKATHONS],
         projects: [],
         random: [],
+        'ai-recruiter': [],
       },
       messagesByDm: {
         'Искендер А.': [
@@ -284,6 +400,7 @@ export default {
     },
     currentMessages() {
       if (this.activeDm) return this.messagesByDm[this.activeDm] || [];
+      if (this.activeChannel === 'ai-recruiter') return this.recruiterMessages;
       if (this.activeChannel) return this.messagesByChannel[this.activeChannel] || [];
       return [];
     },
@@ -369,6 +486,12 @@ export default {
     send() {
       if (!this.inputText.trim()) return;
 
+      // Handle AI recruiter channel differently
+      if (this.activeChannel === 'ai-recruiter') {
+        this.sendToRecruiter();
+        return;
+      }
+
       const message = {
         own: true,
         initials: this.ownInitials,
@@ -393,12 +516,46 @@ export default {
 
       this.inputText = '';
       this.codeMode = false;
+      this.currentIntent = null;
+      this.showAutoComplete = false;
+
       this.$nextTick(() => {
         const feed = this.$refs.feed;
         if (feed) feed.scrollTop = feed.scrollHeight;
       });
+
+      // Simulate response with AI suggestions
+      setTimeout(async () => {
+        const responseText = 'Спасибо за ответ! 🎉';
+        const suggestions = await this.getAiSuggestions(responseText);
+
+        const response = {
+          author: this.activeDm || 'Участник',
+          initials: this.activeDm?.substring(0, 2).toUpperCase() || 'П',
+          role: 'Участник InUni',
+          color: 'linear-gradient(135deg,#e63946,#1d4ed8)',
+          time: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
+          text: responseText,
+          showAiSuggestions: true,
+          aiSuggestions: suggestions,
+        };
+
+        if (this.activeDm) {
+          this.messagesByDm[this.activeDm].push(response);
+        } else if (this.activeChannel) {
+          this.messagesByChannel[this.activeChannel].push(response);
+        }
+
+        this.$nextTick(() => {
+          const feed = this.$refs.feed;
+          if (feed) feed.scrollTop = feed.scrollHeight;
+        });
+      }, 800);
     },
     onType() {
+      // AI input analysis
+      this.onMessageInput();
+
       // simulate someone else typing response
       if (!this.someoneTyping && this.inputText.length > 3) {
         clearTimeout(this.typingTimer);
@@ -422,6 +579,270 @@ export default {
           role: m.role || '',
         },
       });
+    },
+
+    // ==================== AI FUNCTIONS ====================
+
+    /**
+     * Определить интент сообщения (team_invitation, greeting, etc.)
+     */
+    detectMessageIntent(text) {
+      const intents = {
+        'team_invitation': ['приглашу', 'присоединяйся', 'нужен', 'ищу', 'ищу команду', 'в команду'],
+        'greeting': ['привет', 'hi', 'hey', 'здравствуй'],
+        'knowledge_sharing': ['как', 'помоги', 'подскажи', 'советует', 'вопрос'],
+      }
+
+      for (const [intent, keywords] of Object.entries(intents)) {
+        for (const keyword of keywords) {
+          if (text.toLowerCase().includes(keyword)) {
+            return intent
+          }
+        }
+      }
+      return 'general'
+    },
+
+    /**
+     * Получить эмодзи для интента
+     */
+    getIntentEmoji(intent) {
+      const emojis = {
+        'team_invitation': '🔥',
+        'greeting': '👋',
+        'knowledge_sharing': '💡',
+      }
+      return emojis[intent] || '📝'
+    },
+
+    /**
+     * Получить подпись для интента
+     */
+    getIntentLabel(intent) {
+      const labels = {
+        'team_invitation': 'Приглашение в команду',
+        'greeting': 'Приветствие',
+        'knowledge_sharing': 'Запрос совета',
+      }
+      return labels[intent] || ''
+    },
+
+    /**
+     * Обработать ввод текста - detect intent и autocomplete
+     */
+    async onMessageInput() {
+      // Определяем интент
+      this.currentIntent = this.detectMessageIntent(this.inputText)
+
+      // Auto-complete suggestions
+      if (this.inputText.length < 2) {
+        this.showAutoComplete = false
+        return
+      }
+
+      const lastWord = this.inputText.split(' ').pop().toLowerCase()
+
+      const suggestions = {
+        'ищ': ['ищу команду', 'ищу партнера'],
+        'хот': ['хотел бы', 'хотела бы', 'хотим'],
+        'прив': ['привет', 'приветствую'],
+        'спа': ['спасибо', 'спасибо за помощь'],
+        'кто': ['кто то кто нибудь'],
+      }
+
+      for (const [key, values] of Object.entries(suggestions)) {
+        if (key.startsWith(lastWord)) {
+          this.autocompleteSuggestions = values
+          this.showAutoComplete = true
+          return
+        }
+      }
+
+      this.showAutoComplete = false
+    },
+
+    /**
+     * Вставить AI предложение как ответ
+     */
+    insertAiSuggestion(suggestion) {
+      this.inputText = suggestion
+      this.$nextTick(() => {
+        this.$refs.input?.focus()
+      })
+    },
+
+    /**
+     * Получить AI suggestions для сообщения
+     * (Mock для демонстрации - в реальной проекте вызов к backend)
+     */
+    async getAiSuggestions(messageText) {
+      const intent = this.detectMessageIntent(messageText)
+
+      // Mock suggestions (в реальном проекте - вызов /api/ai/chat/suggestions)
+      const suggestionsByIntent = {
+        'team_invitation': [
+          '✨ Спасибо за приглашение! Когда можем обсудить?',
+          '🔥 Звучит интересно! Какой стек вы используете?',
+          '💪 Я в деле! Расскажи подробнее!'
+        ],
+        'greeting': [
+          'Привет! 👋 Как дела?',
+          'Хей! Рад тебя видеть! 🙌',
+          'Привет! Чем я могу помочь?'
+        ],
+        'knowledge_sharing': [
+          'Отличный вопрос! Вот что я думаю...',
+          'Интересный момент! Давай обсудим подробнее',
+          'Согласен! Это действительно важно'
+        ],
+      }
+
+      return suggestionsByIntent[intent] || [
+        'Согласен с тобой 👍',
+        'Интересная идея!',
+        'Спасибо за информацию!'
+      ]
+    },
+    /**
+     * Send message to AI assistant panel (Groq)
+     */
+    async sendToAi() {
+      if (!this.aiInput.trim() || this.aiLoading) return;
+      const userMsg = this.aiInput.trim();
+      this.aiMessages.push({ role: 'user', content: userMsg });
+      this.aiInput = '';
+      this.aiLoading = true;
+
+      await this.$nextTick();
+      const feed = this.$refs.aiFeed;
+      if (feed) feed.scrollTop = feed.scrollHeight;
+
+      try {
+        const systemPrompt = `Ты AI-ассистент для платформы InUni — студенческой сети для поиска команд, хакатонов и проектов.
+Помогай пользователям писать сообщения в чат, советуй как лучше сформулировать предложения, помогай с поиском команды.
+Отвечай кратко, по-русски, дружелюбно. Если пользователь просит написать сообщение — дай готовый текст.
+Текущее сообщение пользователя в чате: "${this.inputText || '(пусто)'}"`;
+
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer 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',
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...this.aiMessages,
+            ],
+            max_tokens: 400,
+            temperature: 0.7,
+          }),
+        });
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content || 'Не удалось получить ответ';
+        this.aiMessages.push({ role: 'assistant', content: reply });
+      } catch (e) {
+        this.aiMessages.push({ role: 'assistant', content: '⚠️ Ошибка соединения с AI. Попробуй снова.' });
+      } finally {
+        this.aiLoading = false;
+        await this.$nextTick();
+        const feed = this.$refs.aiFeed;
+        if (feed) feed.scrollTop = feed.scrollHeight;
+      }
+    },
+
+    aiQuick(prompt) {
+      this.aiInput = prompt;
+      this.sendToAi();
+    },
+
+    /**
+     * AI Recruiter channel — Groq finds candidates
+     */
+    async sendToRecruiter() {
+      const userText = this.inputText.trim();
+      if (!userText) return;
+
+      this.recruiterMessages.push({
+        own: true,
+        initials: this.ownInitials,
+        time: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
+        text: userText,
+      });
+      this.inputText = '';
+      this.someoneTyping = true;
+
+      await this.$nextTick();
+      const feed = this.$refs.feed;
+      if (feed) feed.scrollTop = feed.scrollHeight;
+
+      const CANDIDATES = [
+        { name: 'Искендер А.', initials: 'ИА', role: 'Backend Dev', skills: 'Python, Node.js, PostgreSQL, Docker', color: 'linear-gradient(135deg,#e63946,#1d4ed8)', about: '3 года опыта, участник 5+ хакатонов' },
+        { name: 'Айгерим М.', initials: 'АМ', role: 'UI/UX Designer', skills: 'Figma, Adobe XD, Framer, Tailwind', color: 'linear-gradient(135deg,#7c3aed,#e63946)', about: 'Дизайнер продуктов, портфолио 12+ проектов' },
+        { name: 'Данияр С.', initials: 'ДС', role: 'ML Engineer', skills: 'Python, TensorFlow, PyTorch, OpenCV', color: 'linear-gradient(135deg,#1d4ed8,#06b6d4)', about: 'ML-инженер, специализация HealthTech и CV' },
+        { name: 'Зарина К.', initials: 'ЗК', role: 'Product Manager', skills: 'Agile, Jira, аналитика, roadmap', color: 'linear-gradient(135deg,#f97316,#e63946)', about: 'PM с опытом в стартапах, 2 успешных запуска' },
+        { name: 'Максат Б.', initials: 'МБ', role: 'Frontend Dev', skills: 'Vue 3, React, TypeScript, Tailwind', color: 'linear-gradient(135deg,#059669,#1d4ed8)', about: 'Frontend разработчик, 2 года опыта' },
+        { name: 'Ренат М.', initials: 'РМ', role: 'DevOps Engineer', skills: 'Kubernetes, Docker, CI/CD, AWS', color: 'linear-gradient(135deg,#059669,#06b6d4)', about: 'DevOps, автоматизация и облачная инфраструктура' },
+        { name: 'Назгуль О.', initials: 'НО', role: 'Mobile Developer', skills: 'Flutter, React Native, iOS, Android', color: 'linear-gradient(135deg,#e63946,#f97316)', about: 'Мобильный разработчик, 3 приложения в Store' },
+      ];
+
+      try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer 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',
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              {
+                role: 'system',
+                content: `Ты AI-рекрутер платформы InUni. Твоя задача — по запросу пользователя подобрать подходящих кандидатов из списка участников.
+Список участников (JSON): ${JSON.stringify(CANDIDATES)}
+
+Верни ТОЛЬКО валидный JSON массив (без markdown, без пояснений) такого формата:
+[{"name":"...","initials":"...","role":"...","skills":"...","color":"...","about":"...","match":90,"reason":"почему подходит (1 предложение)"}]
+Выбери 2-4 наиболее подходящих по запросу. Поле match — процент соответствия (50-99).`,
+              },
+              { role: 'user', content: userText },
+            ],
+            max_tokens: 800,
+            temperature: 0.3,
+          }),
+        });
+        const data = await res.json();
+        let raw = data.choices?.[0]?.message?.content || '[]';
+        raw = raw.replace(/```json|```/g, '').trim();
+        const candidates = JSON.parse(raw);
+
+        this.someoneTyping = false;
+        const intro = `Нашёл ${candidates.length} подходящих кандидата по твоему запросу:`;
+        this.recruiterMessages.push({
+          author: '🤖 AI Рекрутер',
+          initials: 'AI',
+          role: 'AI Assistant',
+          color: 'linear-gradient(135deg,#7c3aed,#e63946)',
+          time: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
+          text: intro,
+          candidates,
+          isRecruiterResult: true,
+        });
+      } catch (e) {
+        this.someoneTyping = false;
+        this.recruiterMessages.push({
+          author: '🤖 AI Рекрутер',
+          initials: 'AI',
+          role: 'AI Assistant',
+          color: 'linear-gradient(135deg,#7c3aed,#e63946)',
+          time: new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' }),
+          text: '⚠️ Не удалось получить ответ от AI. Попробуй снова.',
+        });
+      }
+
+      await this.$nextTick();
+      if (feed) feed.scrollTop = feed.scrollHeight;
     },
   },
   mounted() {
@@ -719,6 +1140,113 @@ export default {
 .reaction:hover { background: rgba(255,255,255,0.08); }
 .reaction.reacted { background: rgba(230,57,70,0.12); border-color: rgba(230,57,70,0.3); color: #f87171; }
 
+/* AI SUGGESTIONS */
+.ai-suggestions-box {
+  margin-top: 10px;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-label {
+  font-size: 11px;
+  color: #f87171;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ai-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-suggestion-btn {
+  background: rgba(230, 57, 70, 0.08);
+  border: 1px solid rgba(230, 57, 70, 0.22);
+  color: #f4a3a9;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: 'Onest', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.ai-suggestion-btn:hover {
+  background: rgba(230, 57, 70, 0.15);
+  border-color: rgba(230, 57, 70, 0.35);
+  color: #f87171;
+  transform: translateX(2px);
+}
+
+/* INTENT INDICATOR */
+.intent-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #f4a3a9;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: rgba(230, 57, 70, 0.08);
+  border: 1px solid rgba(230, 57, 70, 0.2);
+  border-radius: 6px;
+  width: fit-content;
+  font-weight: 500;
+}
+
+.intent-emoji {
+  font-size: 13px;
+}
+
+.intent-label {
+  letter-spacing: 0.02em;
+}
+
+/* AUTOCOMPLETE MENU */
+.autocomplete-menu {
+  position: absolute;
+  bottom: 70px;
+  left: 24px;
+  right: 24px;
+  background: rgba(19, 26, 48, 0.95);
+  border: 1px solid rgba(230, 57, 70, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 100;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.autocomplete-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--c-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Onest', sans-serif;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover {
+  background: rgba(230, 57, 70, 0.1);
+  color: #f87171;
+  padding-left: 16px;
+}
+
 /* TYPING */
 .typing-indicator { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
 .typing-dots { display: flex; gap: 3px; }
@@ -886,5 +1414,229 @@ export default {
   .input-wrapper {
     padding: 8px;
   }
+}
+
+/* ===== AI ASSISTANT PANEL ===== */
+.ai-assistant-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  background: rgba(10, 14, 30, 0.97);
+  border-left: 1px solid rgba(124, 58, 237, 0.25);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(20px);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+}
+.ai-assistant-panel.ai-panel-open {
+  transform: translateX(0);
+}
+
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(124, 58, 237, 0.08);
+  flex-shrink: 0;
+}
+.ai-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Unbounded', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c4b5fd;
+  letter-spacing: 0.02em;
+}
+.ai-panel-icon { font-size: 18px; }
+.ai-panel-close {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+  color: var(--c-muted); cursor: pointer; font-size: 12px;
+  display: grid; place-items: center; transition: all 0.2s;
+}
+.ai-panel-close:hover { background: rgba(230,57,70,0.15); color: #f87171; }
+
+.ai-panel-context {
+  margin: 10px 12px 0;
+  padding: 8px 10px;
+  background: rgba(124,58,237,0.08);
+  border: 1px solid rgba(124,58,237,0.18);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.ai-ctx-label { font-size: 9px; font-weight: 700; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 3px; }
+.ai-ctx-text { font-size: 12px; color: var(--c-text); line-height: 1.4; max-height: 48px; overflow: hidden; text-overflow: ellipsis; }
+
+.ai-chat-feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ai-chat-feed::-webkit-scrollbar { width: 3px; }
+.ai-chat-feed::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 2px; }
+
+.ai-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; flex: 1; text-align: center;
+  font-size: 12px; color: var(--c-muted); padding: 20px;
+}
+.ai-empty-icon { font-size: 32px; }
+
+.ai-msg { display: flex; }
+.ai-msg-own { justify-content: flex-end; }
+.ai-msg-bubble {
+  max-width: 85%;
+  padding: 9px 12px;
+  background: rgba(19,26,48,0.95);
+  border: 1px solid var(--c-border);
+  border-radius: 12px 12px 12px 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--c-text);
+  white-space: pre-wrap;
+}
+.ai-msg-own .ai-msg-bubble {
+  background: rgba(124,58,237,0.15);
+  border-color: rgba(124,58,237,0.3);
+  border-radius: 12px 12px 4px 12px;
+  color: #ddd6fe;
+}
+.ai-msg-loading {
+  display: flex; gap: 4px; align-items: center; padding: 12px 16px;
+}
+.ai-msg-loading span {
+  width: 6px; height: 6px; background: #a78bfa; border-radius: 50%;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+.ai-msg-loading span:nth-child(2) { animation-delay: 0.2s; }
+.ai-msg-loading span:nth-child(3) { animation-delay: 0.4s; }
+
+.ai-panel-input {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(124,58,237,0.15);
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+.ai-panel-input textarea {
+  flex: 1;
+  background: rgba(19,26,48,0.9);
+  border: 1.5px solid rgba(124,58,237,0.25);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: var(--c-text);
+  font-family: 'Onest', sans-serif;
+  font-size: 13px;
+  resize: none;
+  outline: none;
+  line-height: 1.4;
+}
+.ai-panel-input textarea:focus { border-color: rgba(124,58,237,0.5); }
+.ai-panel-input textarea::placeholder { color: var(--c-muted); }
+.ai-send-btn {
+  width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg,#7c3aed,#6d28d9);
+  border: none; cursor: pointer; color: #fff; font-size: 14px;
+  display: grid; place-items: center; transition: all 0.2s;
+}
+.ai-send-btn:hover:not(:disabled) { background: #6d28d9; transform: scale(1.05); }
+.ai-send-btn:disabled { background: rgba(255,255,255,0.06); color: var(--c-muted); cursor: not-allowed; }
+
+.ai-quick-btns {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding: 8px 12px 12px; flex-shrink: 0;
+}
+.ai-quick {
+  font-size: 11px; padding: 5px 10px; border-radius: 100px;
+  background: rgba(124,58,237,0.1);
+  border: 1px solid rgba(124,58,237,0.22);
+  color: #c4b5fd; cursor: pointer; transition: all 0.2s;
+  font-family: 'Onest', sans-serif;
+}
+.ai-quick:hover { background: rgba(124,58,237,0.2); color: #ddd6fe; }
+
+/* AI TOGGLE BUTTON */
+.ai-toggle-btn {
+  position: absolute;
+  right: 16px;
+  bottom: 90px;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg,#7c3aed,#6d28d9);
+  border: none; cursor: pointer;
+  font-size: 18px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  z-index: 60;
+  box-shadow: 0 8px 24px rgba(124,58,237,0.4);
+  transition: all 0.2s;
+}
+.ai-toggle-btn:hover { transform: scale(1.08); box-shadow: 0 10px 28px rgba(124,58,237,0.5); }
+.ai-toggle-btn.active { background: linear-gradient(135deg,#e63946,#c62d39); }
+.ai-toggle-label { font-size: 8px; font-family: 'Unbounded',sans-serif; font-weight: 700; color: #fff; line-height: 1; }
+
+/* ===== CANDIDATE CARDS ===== */
+.candidates-grid {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 10px;
+}
+.candidate-card {
+  background: rgba(19,26,48,0.95);
+  border: 1px solid rgba(124,58,237,0.2);
+  border-radius: 12px;
+  padding: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.candidate-card:hover {
+  border-color: rgba(124,58,237,0.4);
+  box-shadow: 0 4px 16px rgba(124,58,237,0.15);
+}
+.cand-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cand-avatar {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: grid; place-items: center;
+  font-family: 'Unbounded',sans-serif; font-size: 10px; font-weight: 700; color: #fff;
+}
+.cand-info { flex: 1; }
+.cand-name { font-size: 13px; font-weight: 700; color: var(--c-white); }
+.cand-role { font-size: 11px; color: var(--c-muted); }
+.cand-match {
+  font-size: 12px; font-weight: 800; color: #a78bfa;
+  font-family: 'Unbounded',sans-serif;
+}
+.cand-match.match-high { color: #4ade80; }
+.cand-about { font-size: 12px; color: var(--c-muted); margin-bottom: 5px; }
+.cand-skills {
+  font-size: 11px; color: #93c5fd;
+  background: rgba(29,78,216,0.1);
+  border: 1px solid rgba(29,78,216,0.2);
+  border-radius: 6px; padding: 4px 8px; margin-bottom: 6px;
+}
+.cand-reason { font-size: 11px; color: #fbbf24; margin-bottom: 8px; }
+.cand-dm-btn {
+  width: 100%; padding: 7px 0;
+  background: rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.28);
+  border-radius: 8px;
+  color: #c4b5fd; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+  font-family: 'Onest', sans-serif;
+}
+.cand-dm-btn:hover {
+  background: rgba(124,58,237,0.22);
+  border-color: rgba(124,58,237,0.4);
+  color: #ddd6fe;
 }
 </style>
