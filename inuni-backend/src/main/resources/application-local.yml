@@ -1,4 +1,4 @@
-logging:
-  level:
-    root: INFO
-
+spring:
+  datasource:
+    username: postgres
+    password: 4617

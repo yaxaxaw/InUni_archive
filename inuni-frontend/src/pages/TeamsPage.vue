@@ -269,7 +269,10 @@
             Хакатоны, стартапы и pet-проекты в одном месте — официальные события и слоты от студентов.
           </p>
         </div>
-        <button type="button" class="btn-primary btn-lg" @click="showCreateModal = true">+ Создать слот</button>
+        <div class="header-actions">
+          <button type="button" class="btn-outline logout-btn" @click="logout">Logout</button>
+          <button type="button" class="btn-primary btn-lg" @click="showCreateModal = true">+ Создать слот</button>
+        </div>
       </header>
 
       <div class="tabs-row">
@@ -712,7 +715,6 @@ import AppShell from '../components/AppShell.vue'
 import { createInitials, loadAppState, patchAppState } from '../lib/appState'
 import { buildFullName } from '../lib/universityProfile'
 import {
-  CATEGORY_TABS,
   COMMUNITY_SLOTS,
   FEATURED_EVENT,
   OFFICIAL_EVENTS,
@@ -736,7 +738,6 @@ const CATEGORY_LABELS = {
   project: 'Проект',
   startup: 'Проект',
   pet: 'Проект',
-  project: 'Проект',
 }
 
 // Демо-заявки — показывают как выглядит раздел "Входящие"
@@ -963,6 +964,11 @@ export default {
       return this.createdSlots.some(s => s.id === slot.id)
     },
 
+    logout() {
+      localStorage.clear()
+      this.$router.push('/login')
+    },
+
     deleteSlot(slot) {
       this.createdSlots = this.createdSlots.filter(s => s.id !== slot.id)
       patchAppState({ createdSlots: this.createdSlots })
@@ -1184,6 +1190,16 @@ export default {
 .page-inner { position: relative; z-index: 1; padding: 40px 40px 60px; max-width: 1160px; }
 
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 28px; flex-wrap: wrap; }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logout-btn {
+  min-width: 100px;
+}
 .page-label { font-family: 'Unbounded', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--c-red); margin-bottom: 8px; }
 .page-title { font-family: 'Unbounded', sans-serif; font-size: 32px; font-weight: 800; color: var(--c-white); margin: 0 0 6px; }
 .page-sub { font-size: 14px; color: var(--c-muted); margin: 0; line-height: 1.6; max-width: 520px; }
@@ -1421,9 +1437,6 @@ export default {
 .btn-outline:hover { border-color: rgba(255,255,255,0.35); }
 .btn-icon { width: 40px; height: 40px; border: 1px solid var(--c-border); background: transparent; color: var(--c-muted); display: grid; place-items: center; }
 .btn-icon.faved { color: #4ade80; border-color: rgba(74,222,128,0.25); }
-.my-slot-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #fbbf24; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); padding: 6px 12px; border-radius: 8px; flex: 1; }
-.btn-delete { font-size: 12px; padding: 7px 14px; color: #f87171; border-color: rgba(230,57,70,0.3); }
-.btn-delete:hover { background: rgba(230,57,70,0.1); border-color: rgba(230,57,70,0.5); }
 
 .my-slot-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #fbbf24; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); padding: 3px 10px; border-radius: 100px; }
 .slot-card--mine { border-color: rgba(251,191,36,0.2); }
